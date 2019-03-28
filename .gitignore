@@ -2,3 +2,5 @@
 .ipynb_checkpoints/
 *.pdf
 *.ipynb
+files/
+test.py
