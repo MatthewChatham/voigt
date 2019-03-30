@@ -4,3 +4,4 @@
 *.ipynb
 files/
 test.py
+__pycache__/
