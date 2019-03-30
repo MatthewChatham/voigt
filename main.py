@@ -1,122 +1,198 @@
-import os
-import re
-import pandas as pd
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import plotly.graph_objs as go
+from extract import get_data
 
-BASE_DIR = '/Users/matthew/freelance/voigt/'
+DATA = get_data()
+
+INSTRUCTIONS = '''
+                    Enter a bin width, then select up to 10 partitions.
+                    When you're done, click "Generate Output File".
+                '''
+
+MIN, MAX = 0, 1000
+
+partitions = []
+vals = [0, 0, 0]
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
-def extract_from_file(filename):
+def figure(bin_width=50, shapes=[], scale='linear', selectedData=None):
     """
-    Given a single filename, extracts data into a dict structure
-    with one column per model parameter and evaluation metric..
+    Given a bin_width and a shapes object, construct a Plotly figure.
     """
 
-    print(f'Extracting from {filename}')
+    figure = {
+        'data': [go.Histogram(x=DATA.value,
+                              xbins=dict(
+                                  start=MIN,
+                                  end=MAX,
+                                  size=bin_width
+                              ),
+                              marker=dict(
+                                  color='#FFD7E9',
+                              ),
+                              opacity=0.75
+                              )
+                 ],
+        'layout': go.Layout({
+            'shapes': shapes,
+            'dragmode': 'select',
+            'yaxis': dict(
+                type=scale,
+                autorange=True
+            )
+        })
+    }
 
-    pats = dict(
-        pos_peaks=re.compile(r'Number of Positive Peaks: (\d+)'),
-        neg_peaks=re.compile(r'Number of Negative Peaks: (\d+)'),
-        mass_30=re.compile(r'Mass at 30 C  : ([\d.]+) mg  --- 100 % '),
-        mass_950=re.compile(
-            r'Mass at 950\.0C : ([\d.]+) mg  --- ([\d.]+) % '),
-        mass_pct_950=re.compile(
-            r'Mass at 950\.0C : [\d.]+ mg  --- ([\d.]+) % '),
-        mass_loss_pct=re.compile(
-            r'Mass loss % \(start mass - end mass\)/\(start mass\)\*100 between 60\.0C and 950\.0C  : ([\d.]+) %'),
-        loss_amorph=re.compile(
-            r'Mass loss to amorphous carbon temp450\.0C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        loss_amorph_pct=re.compile(
-            r'Mass loss to amorphous carbon temp450\.0C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        loss_60=re.compile(
-            r'Mass loss from 60\.0 C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        loss_60_pct=re.compile(
-            r'Mass loss from 60\.0 C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        peak_integration=re.compile(
-            r'Peak Integration: ([\d.]+) % '),
-    )
-
-    mpats = dict(
-        function_evals=re.compile(r'function evals   = (\d+)'),
-        data_points=re.compile(r'data points      = (\d+)'),
-        chi_square=re.compile(r'chi-square         = ([-e.\d]+)'),
-        reduced_chi_square=re.compile(r'reduced chi-square = ([-e.\d]+)'),
-        aic=re.compile(r'Akaike info crit   = ([-e.\d]+)'),
-        bic=re.compile(r'Bayesian info crit = ([-e.\d]+)'),
-    )
-
-    mparams = dict(
-        sigma=r'm{}_sigma:\s+([.\d]+)',
-        center=r'm{}_center:\s+([.\d]+)',
-        amplitude=r'm{}_amplitude:\s+([.\d]+)',
-        gamma=r'm{}_gamma:\s+([.\d]+)',
-        fwhm=r'm{}_fwhm:\s+([.\d]+)',
-        height=r'm{}_height:\s+([.\d]+)',
-    )
-
-    res = pats.copy()
-    pmeval = mpats.copy()
-    pmparams = dict()
-    nmparams = dict()
-
-    with open(filename, 'r') as f:
-        txt = f.read()
-        for k, v in pats.items():
-            res[k] = float(v.search(txt).group(1))
-            # print(k, float(res[k]))
-
-        pos_model_parameters = re.compile(
-            r'Positive model parameters:(.+)(Negative)?', re.DOTALL)
-        pos = pos_model_parameters.search(txt).group(1).strip()
-
-        if res['neg_peaks'] > 0:
-            neg_model_parameters = re.compile(
-                r'Negative model parameters:(.+\Z)', re.DOTALL)
-            neg = neg_model_parameters.search(txt).group(1).strip()
-
-            for i in range(int(res['neg_peaks'])):
-                for k, v in mparams.items():
-                    key = 'nm{}_'.format(i) + k
-                    pat = re.compile(mparams[k].format(i))
-                    nmparams[key] = float(pat.search(neg).group(1))
-
-        for k, v in pmeval.items():
-            pmeval[k] = float(v.search(pos).group(1))
-            # print(k, pmeval[k])
-
-        for i in range(int(res['pos_peaks'])):
-            for k, v in mparams.items():
-                key = 'pm{}_'.format(i) + k
-                pat = re.compile(mparams[k].format(i))
-                pmparams[key] = float(pat.search(pos).group(1))
-
-        record = {
-            **res,
-            **pmeval,
-            **pmparams,
-            **nmparams,
-            'filename': filename
+    # Display a rectangle to highlight the previously selected region
+    shape = {
+        'type': 'rect',
+        'line': {
+            'width': 1,
+            'dash': 'dot',
+            'color': 'darkgrey'
         }
+    }
+    if selectedData:
+        figure['layout']['shapes'] = figure['layout']['shapes'] + (dict({
+            'x0': selectedData['range']['x'][0],
+            'x1': selectedData['range']['x'][1],
+            'y0': selectedData['range']['y'][0],
+            'y1': selectedData['range']['y'][1]
+        }, **shape),)
+    else:
+        pass
 
-        return pd.DataFrame([record])
+    return figure
 
 
-def get_data():
+app.layout = html.Div([
+    html.Div([
+        html.H6('Instructions'),
+        html.P(INSTRUCTIONS)
+    ]),
+    dcc.Input(id='bin-width', placeholder='Enter bin width (default: 100)',
+              type='text', style={'width': '250px'}),
+    dcc.Dropdown(
+        id='scale',
+        options=[
+            {'label': 'Linear', 'value': 'linear'},
+            {'label': 'Log', 'value': 'log'},
+        ],
+        value='linear',
+        placeholder='Select scale',
+        style={'width': '250px'}
+    ),
+    dcc.Dropdown(
+        id='type',
+        options=[
+            {'label': 'Count', 'value': 'count'},
+            {'label': 'Area', 'value': 'area'},
+        ],
+        value='count',
+        placeholder='Select histogram type',
+        style={'width': '250px'}
+    ),
+    html.P(),
+    html.P('Select a partition', id='selection'),
+    dcc.Graph(id='plot', figure=figure()),
+    html.P(id='partitions'),
+    html.Button('Add Partition', id='add-partition'),
+    html.Button('Remove Last Partition', id='remove-partition'),
+    html.Button('Generate Output File', id='submit'),
+
+    html.Div(id='hidden1')  # display: none
+])
+
+
+def generate_output_file():
+    pass
+
+
+def in_partitions(l):
     """
-    Extracts data from all files in the
-    `BASE_DIR/files/` directory into a single dataframe.
+    Given a partition candidate, check whether
+    it overlaps with any existing partitions.
     """
-    res = pd.DataFrame()
-    files = [f for f in os.listdir('files/') if f.endswith('.txt')]
-    for f in files:
-        res = pd.concat([res, extract_from_file(
-            os.path.join(BASE_DIR, 'files/', f))])
+    _l = [int(x) for x in l]
+    res = False
+    for p in partitions:
+        p = [int(x) for x in p]
+        if (_l[1] > p[1] and _l[0] <= p[1]) \
+                or (_l[0] <= p[0] and _l[1] > p[0]) \
+                or (_l[1] <= p[1] and _l[0] >= p[0]):
+            res = True
     return res
 
 
-def main():
-    data = get_data()
-    
-    ## first histogram
+def construct_shapes():
+    """
+    Construct a Plotly shape object for each partition.
+    """
+    shapes = []
+    for p in partitions:
+        shapes.append({
+            'type': 'rect',
+            'x0': p[0], 'x1': p[1],
+            'y0': 0, 'y1': 20,
+            'line': {'color': 'rgba(128, 0, 128, 1)'},
+            'fillcolor': 'rgba(128, 0, 128, 0.2)',
+        })
+    return shapes
+
+
+@app.callback(
+    Output('hidden1', 'children'),
+    [Input('submit', 'n_clicks')]
+)
+def submit(n_clicks):
+    generate_output_file()
+
+
+@app.callback(
+    Output('plot', 'figure'),
+    [
+        Input('add-partition', 'n_clicks'),
+        Input('plot', 'selectedData'),
+        Input('remove-partition', 'n_clicks'),
+        Input('bin-width', 'value'),
+        Input('scale', 'value'),
+        Input('type', 'value')
+    ]
+)
+def update_plot(add_clicks, selectedData, remove_clicks, bin_width, scale, type):
+
+    # CLICKED ADD BUTTON
+    if add_clicks and add_clicks > vals[0] and selectedData and \
+            not in_partitions(selectedData['range']['x']):
+        vals[0] = add_clicks
+        partitions.append([int(x) for x in selectedData['range']['x']])
+
+    # CLICKED REMOVE BUTTON
+    elif remove_clicks and remove_clicks > vals[1] \
+            and len(partitions) > 0:
+        vals[1] = remove_clicks
+        partitions.pop()
+
+    return figure(scale=scale, bin_width=bin_width, selectedData=selectedData, shapes=construct_shapes(), type=type)
+
+
+@app.callback(
+    Output('selection', 'children'),
+    [Input('plot', 'selectedData')]
+)
+def update_selection(selectedData):
+    if selectedData is None:
+        return 'Select a partition.'
+    else:
+        txt = ", ".join([str(int(x)) for x in selectedData["range"]["x"]])
+        return f'You have selected [{txt}].'
+
 
 if __name__ == '__main__':
-    main()
+    app.run_server(debug=True)
