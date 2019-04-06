@@ -2,8 +2,6 @@ import plotly.graph_objs as go
 
 
 MIN, MAX = 0, 1000
-partitions = []
-vals = [0, 0, 0]
 
 
 def figure(bin_width=50, shapes=[], scale='linear', selectedData=None, _type=None, DATA=None):

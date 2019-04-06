@@ -3,7 +3,6 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-
 from extract import get_data
 from drawing import figure, in_partitions, construct_shapes
 from aggregate import aggregate_all_files
@@ -13,9 +12,13 @@ INSTRUCTIONS = '''
                     Enter a bin width, then select up to 10 partitions.
                     When you're done, click "Generate Output File".
                 '''
+
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
+
+partitions = []
+vals = [0, 0, 0]  # store some global values for callbacks
 
 
 app.layout = html.Div([
