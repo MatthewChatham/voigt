@@ -84,6 +84,7 @@ def extract_from_file(filename):
             pmeval[k] = float(v.search(pos).group(1))
             # print(k, pmeval[k])
 
+        print(f'Found {res["pos_peaks"]} positive peaks....')
         for i in range(int(res['pos_peaks'])):
             for k, v in mparams.items():
                 key = 'pm{}_'.format(i) + k
@@ -115,5 +116,6 @@ def get_data():
     id_vars = id_vars.loc[~(id_vars.str.contains(
         'pm') & id_vars.str.contains('center'))]
     res = res.melt(id_vars=id_vars)
+    res = res.loc[res.value.notnull()]
     res.to_csv('data.csv')
     return res
