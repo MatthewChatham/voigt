@@ -1,0 +1,89 @@
+Filename: 2018-05-18_S11.txt
+Number of Positive Peaks: 11
+Number of Negative Peaks: 0
+Mass at 30 C  : 0.831 mg  --- 100 % 
+Mass at 950.0C : 0.0019015864615384616 mg  --- 0.22883110247153568 % 
+Mass loss % (start mass - end mass)/(start mass)*100 between 60.0C and 950.0C  : 99.77 % 
+Mass loss to amorphous carbon temp450.0C: nan mg --- nan%
+Mass loss from 60.0 C: nan mg --- nan%
+Peak Integration: 125.1270762475555 % 
+Positive model parameters: 
+
+[[Model]]
+    ((((((((((Model(voigt, prefix='m0_') + Model(voigt, prefix='m1_')) + Model(voigt, prefix='m2_')) + Model(voigt, prefix='m3_')) + Model(voigt, prefix='m4_')) + Model(voigt, prefix='m5_')) + Model(voigt, prefix='m6_')) + Model(voigt, prefix='m7_')) + Model(voigt, prefix='m8_')) + Model(voigt, prefix='m9_')) + Model(voigt, prefix='m10_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 56
+    # data points      = 325
+    # variables        = 33
+    chi-square         = 11207.7686
+    reduced chi-square = 38.3827692
+    Akaike info crit   = 1216.67461
+    Bayesian info crit = 1341.54084
+[[Variables]]
+    m0_sigma:       42.0690681 (init = 7.766605)
+    m0_center:      340.427265 (init = 339.4665)
+    m0_amplitude:   14.1118866 (init = 14.11189)
+    m0_gamma:       42.0690681 == 'm0_sigma'
+    m0_fwhm:        151.503756 == '3.6013100*m0_sigma'
+    m0_height:      9.40792439 == 'm0_amplitude*wofz((1j*m0_gamma)/(m0_sigma*sqrt(2))).real/(m0_sigma*sqrt(2*pi))'
+    m1_sigma:       0.17369385 (init = 7.766605)
+    m1_center:      586.165042 (init = 586.2118)
+    m1_amplitude:   17.9170080 (init = 262.3102)
+    m1_gamma:       0.17369385 == 'm1_sigma'
+    m1_fwhm:        0.62552541 == '3.6013100*m1_sigma'
+    m1_height:      21.5289477 == 'm1_amplitude*wofz((1j*m1_gamma)/(m1_sigma*sqrt(2))).real/(m1_sigma*sqrt(2*pi))'
+    m2_sigma:       19.9309033 (init = 7.766605)
+    m2_center:      660.200838 (init = 661.1989)
+    m2_amplitude:   14.1118866 (init = 14.11189)
+    m2_gamma:       19.9309033 == 'm2_sigma'
+    m2_fwhm:        71.7773614 == '3.6013100*m2_sigma'
+    m2_height:      9.40792439 == 'm2_amplitude*wofz((1j*m2_gamma)/(m2_sigma*sqrt(2))).real/(m2_sigma*sqrt(2*pi))'
+    m3_sigma:       42.0691116 (init = 7.766605)
+    m3_center:      853.708823 (init = 852.7088)
+    m3_amplitude:   14.1118866 (init = 14.11189)
+    m3_gamma:       42.0691116 == 'm3_sigma'
+    m3_fwhm:        151.503912 == '3.6013100*m3_sigma'
+    m3_height:      9.40792439 == 'm3_amplitude*wofz((1j*m3_gamma)/(m3_sigma*sqrt(2))).real/(m3_sigma*sqrt(2*pi))'
+    m4_sigma:       42.0691116 (init = 7.766605)
+    m4_center:      954.494762 (init = 953.4948)
+    m4_amplitude:   14.1118866 (init = 14.11189)
+    m4_gamma:       42.0691116 == 'm4_sigma'
+    m4_fwhm:        151.503912 == '3.6013100*m4_sigma'
+    m4_height:      9.40792439 == 'm4_amplitude*wofz((1j*m4_gamma)/(m4_sigma*sqrt(2))).real/(m4_sigma*sqrt(2*pi))'
+    m5_sigma:       42.0690889 (init = 7.766605)
+    m5_center:      260.916157 (init = 385.0319)
+    m5_amplitude:   14.1118866 (init = 14.11189)
+    m5_gamma:       42.0690889 == 'm5_sigma'
+    m5_fwhm:        151.503831 == '3.6013100*m5_sigma'
+    m5_height:      14.1118866 == 'm5_amplitude*wofz((1j*m5_gamma)/(m5_sigma*sqrt(2))).real/(m5_sigma*sqrt(2*pi))'
+    m6_sigma:       42.0691116 (init = 7.766605)
+    m6_center:      756.857394 (init = 373.4585)
+    m6_amplitude:   14.1118866 (init = 14.11189)
+    m6_gamma:       42.0691116 == 'm6_sigma'
+    m6_fwhm:        151.503912 == '3.6013100*m6_sigma'
+    m6_height:      14.1118866 == 'm6_amplitude*wofz((1j*m6_gamma)/(m6_sigma*sqrt(2))).real/(m6_sigma*sqrt(2*pi))'
+    m7_sigma:       36.3783912 (init = 7.766605)
+    m7_center:      465.160390 (init = 380.3559)
+    m7_amplitude:   14.1118866 (init = 14.11189)
+    m7_gamma:       36.3783912 == 'm7_sigma'
+    m7_fwhm:        131.009864 == '3.6013100*m7_sigma'
+    m7_height:      14.1118866 == 'm7_amplitude*wofz((1j*m7_gamma)/(m7_sigma*sqrt(2))).real/(m7_sigma*sqrt(2*pi))'
+    m8_sigma:       42.0690763 (init = 7.766605)
+    m8_center:      132.252572 (init = 325.4074)
+    m8_amplitude:   14.1118866 (init = 14.11189)
+    m8_gamma:       42.0690763 == 'm8_sigma'
+    m8_fwhm:        151.503785 == '3.6013100*m8_sigma'
+    m8_height:      14.1118866 == 'm8_amplitude*wofz((1j*m8_gamma)/(m8_sigma*sqrt(2))).real/(m8_sigma*sqrt(2*pi))'
+    m9_sigma:       0.10000000 (init = 7.766605)
+    m9_center:      527.173485 (init = 550.2925)
+    m9_amplitude:   14.1118866 (init = 14.11189)
+    m9_gamma:       0.10000000 == 'm9_sigma'
+    m9_fwhm:        0.36013100 == '3.6013100*m9_sigma'
+    m9_height:      29.4528170 == 'm9_amplitude*wofz((1j*m9_gamma)/(m9_sigma*sqrt(2))).real/(m9_sigma*sqrt(2*pi))'
+    m10_sigma:      5.46433184 (init = 7.766605)
+    m10_center:     586.362859 (init = 514.9878)
+    m10_amplitude:  14.1119169 (init = 14.11189)
+    m10_gamma:      5.46433184 == 'm10_sigma'
+    m10_fwhm:       19.6787529 == '3.6013100*m10_sigma'
+    m10_height:     14.1118866 == 'm10_amplitude*wofz((1j*m10_gamma)/(m10_sigma*sqrt(2))).real/(m10_sigma*sqrt(2*pi))'
