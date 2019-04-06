@@ -114,4 +114,5 @@ def get_data():
     id_vars = id_vars.loc[~(id_vars.str.contains(
         'pm') & id_vars.str.contains('center'))]
     res = res.melt(id_vars=id_vars)
+    res.to_csv('data.csv')
     return res

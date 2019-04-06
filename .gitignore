@@ -5,3 +5,7 @@
 files/
 test.py
 __pycache__/
+build
+*.csv
+dist
+*.spec
