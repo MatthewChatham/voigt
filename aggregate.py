@@ -1,5 +1,8 @@
 import os
 import pandas as pd
+import numpy as np
+from scipy.special import wofz
+from scipy.integrate import quad
 
 from extract import extract_from_file
 
@@ -9,6 +12,11 @@ test_data = extract_from_file('files/fit_1_2018-05-17_S15_ian.txt')
 test_partitions = [(30, 100)]
 
 FILES = [f for f in os.listdir('files/') if f.endswith('.txt')]
+
+
+def Voigt(x, sigma, gamma):
+    return np.real(wofz((x + 1j * gamma) / sigma / np.sqrt(2))) / sigma\
+        / np.sqrt(2 * np.pi)
 
 
 def composition(partitions, filename):
