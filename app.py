@@ -12,7 +12,7 @@ from flask import send_file
 from os.path import join
 
 BASE_DIR = '/Users/matthew/freelance/voigt/'
-BASE_DIR = '..' # FOR DEV ON HEROKU
+BASE_DIR = '.' # FOR DEV ON HEROKU
 
 DATA = get_data()
 INSTRUCTIONS = '''

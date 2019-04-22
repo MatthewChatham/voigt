@@ -1,1 +1,1 @@
-web: gunicorn --chdir voigt app:server
+web: gunicorn app:server
