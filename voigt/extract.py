@@ -3,7 +3,7 @@ import re
 import pandas as pd
 
 BASE_DIR = '/Users/matthew/freelance/voigt/'
-BASE_DIR = '.' # FOR DEV ON HEROKU
+BASE_DIR = '..' # FOR DEV ON HEROKU
 
 
 def extract_from_file(filename):
