@@ -4,12 +4,14 @@ import numpy as np
 from scipy.special import wofz
 from scipy.integrate import quad
 
-from extract import extract_from_file
+from extract import get_data
 
 # TODO: make sure partitions always includes (-np.inf, 0)
+# TODO: make sure to segregate "negative" models
 
-test_data = extract_from_file('files/fit_1_2018-05-17_S15_ian.txt')
-test_partitions = [(30, 100)]
+test_data = get_data()
+test_partitions = [(30, 100), (100, 150),
+                   (150, 400), (400, 1000)]
 
 FILES = [f for f in os.listdir('files/') if f.endswith('.txt')]
 
@@ -19,31 +21,115 @@ def Voigt(x, sigma, gamma):
         / np.sqrt(2 * np.pi)
 
 
-def composition(partitions, filename):
+def compute_bin_areas(bins, DATA):
     """
-    For each partition, compute composition for the given filename.
+    Used when the user selects "Area" chart type.
     """
-    return 'composition_test', 0
+    areas = [0] * len(bins)
+    for i, b in enumerate(bins):
+        for idx, model in DATA.iterrows():
+            model_prefix = str.split(model.variable, '_')[0]
+            sigma = model[model_prefix + '_sigma']
+            gamma = model[model_prefix + '_gamma']
+            a, e = quad(lambda x: Voigt(x, sigma, gamma), b[0], b[1])
+            areas[i] += 0 if np.isnan(a) else a * model[model_prefix + '_amplitude']
+    return areas
 
 
-def weighted_avg_peak_position(partitions, filename):
+def comp(bounds, models):
     """
-    For each partition, compute weighted avg
+    For a single partition, compute composition for the given filename.
+
+    Returns
+    -----
+    (var, val) : tuple, var is the column name and val is the column value for that 
+
+    var is of the format "comp_min_max" where min and max are taken from the bounds.
+    """
+    bin_area = 0
+    for idx, model in models.iterrows():
+        prefix = model.variable[:model.variable.index('_')]
+        a, e = quad(lambda x: Voigt(
+            x, model[prefix + '_sigma'], model[prefix + '_gamma']), *bounds)
+        # print(f'Got area {a} and error {e} on model {prefix} in file
+        # {model.filename}')
+        if e > 0.1:
+            print('!!!High error!!!')
+        bin_area += a * model[prefix + '_amplitude']
+        # print(f'Total bin area so far: {bin_area}')
+        # print()
+    return f'comp_{bounds[0]}_{bounds[1]}', bin_area
+
+
+def wapp(bounds, models):
+    """
+    For a single partition, compute weighted avg
     peak position for the given filename.
+
+    Input
+    -----
+    bounds : tuple, bounds of a single partition region
+    models : df, models contained by a single file
+
+    Returns
+    -----
+    (col, val) : tuple(str, float), the column name and value of the 
+                    WAPP for models in the given bounds
     """
-    return 'weighted_avg_peak_position_test', 0
+    mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
+    models = models.loc[mask]
+
+    centers = models.value.values
+    # print('Centers:', centers)
+    weights = [1] * len(centers)
+
+    for i, (idx, model) in enumerate(models.iterrows()):
+        prefix = model.variable[:model.variable.index('_')]
+        # print('Prefix:', prefix)
+        a, e = quad(lambda x: Voigt(
+            x, model[prefix + '_sigma'], model[prefix + '_gamma']), *bounds)
+        if e > 0.1:
+            print('!!!High error!!!')
+        weights[i] = a * model[prefix + '_amplitude']
+        # print(weights)
+    # print(np.dot(centers, weights) / sum(weights))
+
+    return f'wapp_{bounds[0]}_{bounds[1]}', \
+        np.dot(centers, weights) / sum(weights)
 
 
-def fwhm(partitions, filename):
+def fwhm(bounds, models):
     """
-    For each partition, compute fwhm for the given filename.
+    For a single partition, compute fwhm for the given filename.
     """
-    return 'fwhm_test', 0
+    # print(bounds)
+
+    mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
+    models = models.loc[mask]
+
+    def F(x):
+        vals = list()
+
+        for idx, model in models.iterrows():
+            prefix = model.variable[:model.variable.index('_')]
+            v = Voigt(x, model[prefix + '_sigma'], model[prefix + '_gamma'])
+            vals.append(v)
+        return sum(vals)
+
+    x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist()
+    y = [F(_) for _ in x]
+    halfmax = max(y) / 2
+    diffs = [int(halfmax - _) for _ in y]
+    lowerbound = x[diffs.index(0)]
+    # print(lowerbound)
+    upperbound = x[len(diffs) - diffs[::-1].index(0) - 1]
+
+    return f'fwhm_{bounds[0]}_{bounds[1]}', upperbound - lowerbound
 
 
 AGGREGATIONS = {
-    'composition': composition,
-    'weighted_avg_peak_position': weighted_avg_peak_position,
+    'comp': comp,
+    'wapp': wapp,
     'fwhm': fwhm,
 }
 
@@ -92,12 +178,16 @@ def aggregate_all_files(partitions, models):
         for col in d.keys():
             res_df.loc[f, col] = d[col]
 
+    res_df.to_csv('output.csv')
+    print('result saved to output.csv...')
+
     return res_df
 
 
 def test():
     result = aggregate_all_files(test_partitions, test_data)
-    print('Result:', result.columns, '\n', result.head())
+    # print('Result:', result.columns, '\n', result.head())
+    result.to_csv('dev_result.csv')
 
 
 if __name__ == '__main__':

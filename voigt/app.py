@@ -4,8 +4,15 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from extract import get_data
-from drawing import figure, in_partitions, construct_shapes
+from drawing import figure
 from aggregate import aggregate_all_files
+
+from flask import send_file
+
+from os.path import join
+
+BASE_DIR = '/Users/matthew/freelance/voigt/'
+BASE_DIR = '.' # FOR DEV ON HEROKU
 
 DATA = get_data()
 INSTRUCTIONS = '''
@@ -19,6 +26,40 @@ server = app.server
 
 partitions = []
 vals = [0, 0, 0]  # store some global values for callbacks
+
+
+def in_partitions(l):
+    """
+    Given a partition candidate, check whether
+    it overlaps with any existing partitions.
+    """
+    # print(l)
+    _l = [int(x) for x in l]
+    res = False
+    for p in partitions:
+        p = [int(x) for x in p]
+        if (_l[1] > p[1] and _l[0] <= p[1]) \
+                or (_l[0] <= p[0] and _l[1] > p[0]) \
+                or (_l[1] <= p[1] and _l[0] >= p[0]):
+            res = True
+    return res
+
+def construct_shapes(scale='linear'):
+    """
+    Construct a Plotly shape object for each partition.
+    """
+    shapes = []
+    # if scale == 'log':
+    #     return shapes
+    for p in partitions:
+        shapes.append({
+            'type': 'rect',
+            'x0': p[0], 'x1': p[1],
+            'y0': 1, 'y1': 20,
+            'line': {'color': 'rgba(128, 0, 128, 1)'},
+            'fillcolor': 'rgba(128, 0, 128, 0.2)',
+        })
+    return shapes
 
 
 app.layout = html.Div([
@@ -62,18 +103,28 @@ app.layout = html.Div([
     html.Button('Add Partition', id='add-partition'),
     html.Button('Remove Last Partition', id='remove-partition'),
     html.Button('Generate Output File', id='submit'),
-
+    html.A('Download CSV', href='/dash/download', id='dl_link'),
     html.Div(id='hidden1')  # display: none
 ])
 
 
 @app.callback(
-    Output('hidden1', 'children'),
+    Output('dl_link', 'style'),
     [Input('submit', 'n_clicks')]
 )
-def submit(n_clicks):
-    aggregate_all_files()
+def submit(n_clicks): 
+    if n_clicks is None:
+        return {'display': 'none'}
+    if n_clicks is not None:
+        aggregate_all_files(partitions, get_data())
+        return {}
 
+@app.server.route('/dash/download') 
+def download_csv():
+    return send_file(join(BASE_DIR, 'output.csv'),
+                     mimetype='text/csv',
+                     attachment_filename='output.csv',
+                     as_attachment=True)
 
 @app.callback(
     Output('plot', 'figure'),
@@ -97,21 +148,22 @@ def update_plot(add_clicks, selectedData, remove_clicks, bin_width, scale, _type
     # CLICKED REMOVE BUTTON
     elif remove_clicks and remove_clicks > vals[1] \
             and len(partitions) > 0:
+        print('removing')
         vals[1] = remove_clicks
         partitions.pop()
 
-    return figure(scale=scale, bin_width=bin_width, selectedData=selectedData, shapes=construct_shapes(), _type=_type, DATA=DATA)
+    return figure(scale=scale, bin_width=bin_width, selectedData=selectedData, shapes=construct_shapes(scale=scale), _type=_type, DATA=DATA)
 
 
 @app.callback(
     Output('selection', 'children'),
     [Input('plot', 'selectedData')]
 )
-def update_selection(selectedData):
+def update_selection_prompt(selectedData):
     if selectedData is None:
         return 'Select a partition.'
     else:
-        print(selectedData["range"]["x"])
+        # print(selectedData["range"]["x"])
         txt = ", ".join([str(int(x)) for x in selectedData["range"]["x"]])
         return f'You have selected [{txt}].'
 

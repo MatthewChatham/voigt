@@ -12,7 +12,7 @@ def extract_from_file(filename):
     with one column per model parameter and evaluation metric..
     """
 
-    print(f'Extracting from {filename}')
+    # print(f'Extracting from {filename}')
 
     pats = dict(
         pos_peaks=re.compile(r'Number of Positive Peaks: (\d+)'),
@@ -84,7 +84,7 @@ def extract_from_file(filename):
             pmeval[k] = float(v.search(pos).group(1))
             # print(k, pmeval[k])
 
-        print(f'Found {res["pos_peaks"]} positive peaks....')
+        # print(f'Found {res["pos_peaks"]} positive peaks....')
         for i in range(int(res['pos_peaks'])):
             for k, v in mparams.items():
                 key = 'pm{}_'.format(i) + k
@@ -101,7 +101,7 @@ def extract_from_file(filename):
 
         return pd.DataFrame([record])
 
-
+# todo: change files/ to input/
 def get_data():
     """
     Extracts data from all files in the
@@ -111,7 +111,7 @@ def get_data():
     files = [f for f in os.listdir('files/') if f.endswith('.txt')]
     for f in files:
         res = pd.concat([res, extract_from_file(
-            os.path.join(BASE_DIR, 'files/', f))])
+            os.path.join(BASE_DIR, 'files/', f))], sort=True)
     id_vars = pd.Series(res.columns)
     id_vars = id_vars.loc[~(id_vars.str.contains(
         'pm') & id_vars.str.contains('center'))]
