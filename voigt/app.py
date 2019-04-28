@@ -3,11 +3,12 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from extract import get_data
-from drawing import figure
+from drawing import countplot, areaplot
 from aggregate import aggregate_all_files
 from flask import send_file
 from os.path import join
 import os
+import json
 
 
 if os.environ.get('STACK'):
@@ -31,21 +32,8 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
 
 
-def construct_shapes(scale='linear', split_point=None):
-    """
-    Construct a Plotly shape object for each partition.
-    """
+def construct_shapes(scale='linear', split_point=None, max_=10):
     shapes = []
-    # if scale == 'log':
-    #     return shapes
-    for p in partitions:
-        shapes.append({
-            'type': 'rect',
-            'x0': p[0], 'x1': p[1],
-            'y0': 1, 'y1': 20,
-            'line': {'color': 'rgba(128, 0, 128, 1)'},
-            'fillcolor': 'rgba(128, 0, 128, 0.2)',
-        })
 
     if split_point:
         shapes.append({
@@ -53,7 +41,7 @@ def construct_shapes(scale='linear', split_point=None):
             'x0': split_point,
             'y0': 0,
             'x1': split_point,
-            'y1': 100,
+            'y1': max_,
             'line': {
                 'color': 'rgb(55, 128, 191)',
                 'width': 3,
@@ -105,55 +93,51 @@ app.layout = html.Div([
         style={'width': '250px', 'title': 'asdf'},
         min=0, max=1000, step=10
     ),
-    html.Button('Add Split', id='add-split'),
-    html.Button('Remove Last Split', id='remove-split'),
+    html.Button('Add Split', id='add-split', n_clicks_timestamp=0),
+    html.Button('Remove Last Split', id='remove-split', n_clicks_timestamp=0),
     html.Button('Generate Output File', id='submit'),
     html.A('Download CSV', href='/dash/download', id='dl_link'),
     html.P('Select a partition', id='selection'),
-    dcc.Graph(id='plot', figure=figure(DATA=DATA)),
+    dcc.Graph(id='plot', figure=countplot(DATA=DATA)),
 
-    html.Div(id='split-points', style={'display': 'none'})
+    html.Div(id='splits')  # , style={'display': 'none'})
 ])
 
 
+@app.callback(Output('selection', 'children'), [Input('split-point', 'value')])
+def update_selection_prompt(split):
+    if split is None:
+        return 'Select a split point.'
+    else:
+        return f'You have selected {split}.'
+
+
 @app.callback(
-    Output('split-points', 'children'),
+    Output('splits', 'children'),
     [
         Input('add-split', 'n_clicks_timestamp'),
         Input('remove-split', 'n_clicks_timestamp'),
         Input('split-point', 'value')
     ],
-    [State('split-points', 'children')]
+    [State('splits', 'children')]
 )
-def update_state(add, remove, split_point, partitions):
-    partitions = from_json(partitions)
-    if add > remove:
-        partitions.append(split_point)
-    if remove > add:
-        partitions.pop()
-    else:
-        raise RuntimeError('Add and remove buttons clicked at the same time!')
-    return to_json(partitions)
+def update_state(add, remove, split_point, state):
+    if add == 0 and remove == 0:
+        return '{"splits":[], "add":0, "remove":0}'
 
+    state = json.loads(state)
 
-@app.callback(
-    Output('dl_link', 'style'),
-    [Input('submit', 'n_clicks')]
-)
-def submit(n_clicks):
-    if n_clicks is None:
-        return {'display': 'none'}
-    if n_clicks is not None:
-        aggregate_all_files(partitions, get_data())
-        return {}
+    if add > remove and add > state['add']:
+        if split_point not in state['splits']:
+            state['splits'].append(split_point)
+    elif remove > add and remove > state['remove']:
+        if len(state['splits']) > 0:
+            state['splits'].pop()
 
+    state['add'] = add
+    state['remove'] = remove
 
-@app.server.route('/dash/download')
-def download_csv():
-    return send_file(join(BASE_DIR, 'output', 'output.csv'),
-                     mimetype='text/csv',
-                     attachment_filename='output.csv',
-                     as_attachment=True)
+    return json.dumps(state)
 
 
 @app.callback(
@@ -163,23 +147,38 @@ def download_csv():
         Input('scale', 'value'),
         Input('type', 'value'),
         Input('split-point', 'value')
-    ]
+    ],
+    [State('splits', 'children')]
 )
-def update_plot(bin_width, scale, chart_type, split_point):
-    return figure(bin_width, DATA=DATA, scale=scale, _type=chart_type, shapes=construct_shapes(split_point=split_point))
+def update_plot(bin_width, scale, chart_type, split_point, splits):
+    funcs = {'count': countplot, 'area': areaplot}
+    return funcs[chart_type](
+        bin_width,
+        DATA=DATA,
+        scale=scale,
+        shapes=construct_shapes(split_point=split_point)
+    )
 
 
 @app.callback(
-    Output('selection', 'children'),
-    [Input('plot', 'selectedData')]
+    Output('dl_link', 'style'),
+    [Input('submit', 'n_clicks')],
+    [State('splits', 'children')]
 )
-def update_selection_prompt(selectedData):
-    if selectedData is None:
-        return 'Select a partition.'
-    else:
-        # print(selectedData["range"]["x"])
-        txt = ", ".join([str(int(x)) for x in selectedData["range"]["x"]])
-        return f'You have selected [{txt}].'
+def submit(n_clicks, splits):
+    if n_clicks is None:
+        return {'display': 'none'}
+    if n_clicks is not None:
+        aggregate_all_files(splits, get_data())
+        return {}
+
+
+@app.server.route('/dash/download')
+def download_csv():
+    return send_file(join(BASE_DIR, 'output', 'output.csv'),
+                     mimetype='text/csv',
+                     attachment_filename='output.csv',
+                     as_attachment=True)
 
 
 if __name__ == '__main__':
