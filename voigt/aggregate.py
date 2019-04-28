@@ -193,6 +193,8 @@ def aggregate_all_files(splits, models):
     partitions = splits.copy()
     partitions.append(1000)
     partitions.insert(0, 0)
+    partitions = [(x, partitions[i + 1])
+                  for i, x in enumerate(partitions) if x != 1000]
     res_df = pd.DataFrame(list(), index=models.filename.unique())
 
     for f in models.filename.unique():
