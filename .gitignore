@@ -11,3 +11,4 @@ dist
 input/
 test_input/
 tmp.txt
+*.egg-info/
