@@ -1,10 +1,18 @@
 import os
+from os.path import join
 import pandas as pd
 import numpy as np
 from scipy.special import wofz
 from scipy.integrate import quad
 
 from extract import get_data
+
+if os.environ.get('STACK'):
+    env = 'Heroku'
+    BASE_DIR = '/app'
+else:
+    env = 'Dev'
+    BASE_DIR = '/Users/matthew/freelance/voigt'
 
 # TODO: make sure partitions always includes (-np.inf, 0)
 # TODO: make sure to segregate "negative" models
@@ -13,7 +21,7 @@ test_data = get_data()
 test_partitions = [(30, 100), (100, 150),
                    (150, 400), (400, 1000)]
 
-FILES = [f for f in os.listdir('files/') if f.endswith('.txt')]
+FILES = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
 
 
 def Voigt(x, sigma, gamma):
@@ -178,8 +186,8 @@ def aggregate_all_files(partitions, models):
         for col in d.keys():
             res_df.loc[f, col] = d[col]
 
-    res_df.to_csv('output.csv')
-    print('result saved to output.csv...')
+    res_df.to_csv(join(BASE_DIR, 'output', 'output.csv'))
+    print('result saved to output/output.csv...')
 
     return res_df
 
@@ -187,7 +195,7 @@ def aggregate_all_files(partitions, models):
 def test():
     result = aggregate_all_files(test_partitions, test_data)
     # print('Result:', result.columns, '\n', result.head())
-    result.to_csv('dev_result.csv')
+    result.to_csv(join(BASE_DIR, 'output', 'dev_result.csv'))
 
 
 if __name__ == '__main__':

@@ -2,17 +2,23 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
-
 from extract import get_data
 from drawing import figure
 from aggregate import aggregate_all_files
-
 from flask import send_file
-
 from os.path import join
+import os
 
-BASE_DIR = '/Users/matthew/freelance/voigt/'
-BASE_DIR = '.'  # FOR DEV ON HEROKU
+
+if os.environ.get('STACK'):
+    env = 'Heroku'
+    BASE_DIR = '/app'
+else:
+    env = 'Dev'
+    BASE_DIR = '/Users/matthew/freelance/voigt'
+
+print(f'Running in {os.getcwd()} on {env} environment.')
+
 
 DATA = get_data()
 INSTRUCTIONS = '''
@@ -144,7 +150,7 @@ def submit(n_clicks):
 
 @app.server.route('/dash/download')
 def download_csv():
-    return send_file(join(BASE_DIR, 'output.csv'),
+    return send_file(join(BASE_DIR, 'output', 'output.csv'),
                      mimetype='text/csv',
                      attachment_filename='output.csv',
                      as_attachment=True)

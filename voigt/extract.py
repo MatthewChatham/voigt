@@ -1,9 +1,33 @@
 import os
+from os.path import join
 import re
 import pandas as pd
 
-BASE_DIR = '/Users/matthew/freelance/voigt/'
-BASE_DIR = '.' # FOR DEV ON HEROKU
+if os.environ.get('STACK'):
+    env = 'Heroku'
+    BASE_DIR = '/app'
+else:
+    env = 'Dev'
+    BASE_DIR = '/Users/matthew/freelance/voigt'
+
+
+def get_data():
+    """
+    Extracts data from all files in the
+    `BASE_DIR/files/` directory into a single dataframe.
+    """
+    res = pd.DataFrame()
+    files = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
+    for f in files:
+        res = pd.concat([res, extract_from_file(
+            os.path.join(BASE_DIR, 'input/', f))], sort=True)
+    id_vars = pd.Series(res.columns)
+    id_vars = id_vars.loc[~(id_vars.str.contains(
+        'pm') & id_vars.str.contains('center'))]
+    res = res.melt(id_vars=id_vars)
+    res = res.loc[res.value.notnull()]
+    res.to_csv(join(BASE_DIR, 'output', 'data.csv'))
+    return res
 
 
 def extract_from_file(filename):
@@ -100,22 +124,3 @@ def extract_from_file(filename):
         }
 
         return pd.DataFrame([record])
-
-# todo: change files/ to input/
-def get_data():
-    """
-    Extracts data from all files in the
-    `BASE_DIR/files/` directory into a single dataframe.
-    """
-    res = pd.DataFrame()
-    files = [f for f in os.listdir('files/') if f.endswith('.txt')]
-    for f in files:
-        res = pd.concat([res, extract_from_file(
-            os.path.join(BASE_DIR, 'files/', f))], sort=True)
-    id_vars = pd.Series(res.columns)
-    id_vars = id_vars.loc[~(id_vars.str.contains(
-        'pm') & id_vars.str.contains('center'))]
-    res = res.melt(id_vars=id_vars)
-    res = res.loc[res.value.notnull()]
-    res.to_csv('data.csv')
-    return res
