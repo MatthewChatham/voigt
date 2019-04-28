@@ -18,8 +18,11 @@ else:
 # TODO: make sure to segregate "negative" models
 
 test_data = get_data()
-test_partitions = [(30, 100), (100, 150),
-                   (150, 400), (400, 1000)]
+test_splits = [250, 650]
+test_splits.append(1000)
+test_splits.insert(0, 0)
+test_partitions = [(x, test_splits[i + 1])
+                   for i, x in enumerate(test_splits) if x != 1000]
 
 FILES = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
 
@@ -40,39 +43,39 @@ def compute_bin_areas(bins, DATA):
             sigma = model[model_prefix + '_sigma']
             gamma = model[model_prefix + '_gamma']
             a, e = quad(lambda x: Voigt(x, sigma, gamma), b[0], b[1])
-            areas[i] += 0 if np.isnan(a) else a * model[model_prefix + '_amplitude']
+            areas[i] += 0 if np.isnan(a) else a * \
+                model[model_prefix + '_amplitude']
     return areas
 
 
-def comp(bounds, models):
+def composition(bounds, models):
     """
-    For a single partition, compute composition for the given filename.
+    Given a tuple of bounds and a df of models,
+    compute the total area within the bounds.
 
     Returns
     -----
-    (var, val) : tuple, var is the column name and val is the column value for that 
+    (col, val) : tuple(str, float), (column name, area within bounds)
 
-    var is of the format "comp_min_max" where min and max are taken from the bounds.
+    Note: var is of the format "comp_min_max"
     """
     bin_area = 0
     for idx, model in models.iterrows():
         prefix = model.variable[:model.variable.index('_')]
         a, e = quad(lambda x: Voigt(
             x, model[prefix + '_sigma'], model[prefix + '_gamma']), *bounds)
-        # print(f'Got area {a} and error {e} on model {prefix} in file
-        # {model.filename}')
-        if e > 0.1:
-            print('!!!High error!!!')
+        if e > 0.01:
+            msg = f'''High error of {e} for composition on model
+            {model.filename}/{prefix} in bounds {bounds}.'''
+            raise Warning(msg)
         bin_area += a * model[prefix + '_amplitude']
-        # print(f'Total bin area so far: {bin_area}')
-        # print()
     return f'comp_{bounds[0]}_{bounds[1]}', bin_area
 
 
-def wapp(bounds, models):
+def peak_position(bounds, models):
     """
-    For a single partition, compute weighted avg
-    peak position for the given filename.
+    Given a tuple of partition bounds and a df of models,
+    compute weighted average peak position (WAPP) within bounds.
 
     Input
     -----
@@ -81,26 +84,18 @@ def wapp(bounds, models):
 
     Returns
     -----
-    (col, val) : tuple(str, float), the column name and value of the 
-                    WAPP for models in the given bounds
+    (col, val) : tuple(str, float), (column name, WAPP)
     """
     mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
     models = models.loc[mask]
 
     centers = models.value.values
-    # print('Centers:', centers)
     weights = [1] * len(centers)
 
+    # Weights are amplitudes (total area under curve)
     for i, (idx, model) in enumerate(models.iterrows()):
         prefix = model.variable[:model.variable.index('_')]
-        # print('Prefix:', prefix)
-        a, e = quad(lambda x: Voigt(
-            x, model[prefix + '_sigma'], model[prefix + '_gamma']), *bounds)
-        if e > 0.1:
-            print('!!!High error!!!')
-        weights[i] = a * model[prefix + '_amplitude']
-        # print(weights)
-    # print(np.dot(centers, weights) / sum(weights))
+        weights[i] = model[prefix + '_amplitude']
 
     return f'wapp_{bounds[0]}_{bounds[1]}', \
         np.dot(centers, weights) / sum(weights)
@@ -108,7 +103,18 @@ def wapp(bounds, models):
 
 def fwhm(bounds, models):
     """
-    For a single partition, compute fwhm for the given filename.
+    Given a tuple of partition bounds and a df of models,
+    compute the full width half maximum (FWHM) of the sum
+    over peaks within bounds.
+
+    Input
+    -----
+    bounds : tuple, bounds of a single partition region
+    models : df, models contained by a single file
+
+    Returns
+    -----
+    (col, val) : tuple(str, float), (column name, FWHM)
     """
     # print(bounds)
 
@@ -120,24 +126,27 @@ def fwhm(bounds, models):
 
         for idx, model in models.iterrows():
             prefix = model.variable[:model.variable.index('_')]
-            v = Voigt(x, model[prefix + '_sigma'], model[prefix + '_gamma'])
-            vals.append(v)
+            vals.append(
+                Voigt(x, model[prefix + '_sigma'], model[prefix + '_gamma'])
+            )
         return sum(vals)
 
     x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist()
     y = [F(_) for _ in x]
     halfmax = max(y) / 2
     diffs = [int(halfmax - _) for _ in y]
-    lowerbound = x[diffs.index(0)]
-    # print(lowerbound)
-    upperbound = x[len(diffs) - diffs[::-1].index(0) - 1]
+    try:
+        lowerbound = x[diffs.index(0)]
+        upperbound = x[len(diffs) - diffs[::-1].index(0) - 1]
+    except ValueError:
+        raise RuntimeError(f'Failed to find FWHM within bounds {bounds}.')
 
     return f'fwhm_{bounds[0]}_{bounds[1]}', upperbound - lowerbound
 
 
 AGGREGATIONS = {
-    'comp': comp,
-    'wapp': wapp,
+    'comp': composition,
+    'wapp': peak_position,
     'fwhm': fwhm,
 }
 
@@ -162,7 +171,7 @@ def aggregate_single_file(partitions, models):
     return res_dict
 
 
-def aggregate_all_files(partitions, models):
+def aggregate_all_files(splits, models):
     """
 
     Given a set of partitions and data from input files,
@@ -170,15 +179,20 @@ def aggregate_all_files(partitions, models):
 
     -----
 
-    Inputs:
-        partitions  : list, inclusive partition boundaries as tuples or lists
-        data        : DataFrame, model data read in from files
+    Input
+    -----
+    splits      : list, partition split points
+    data        : DataFrame, model data read in from files
 
 
-    Returns:
-        res_df      : DataFrame, as specified in contract
+    Returns
+    -----
+    res_df      : DataFrame, as specified in contract
 
     """
+    partitions = splits.copy()
+    partitions.append(1000)
+    partitions.insert(0, 0)
     res_df = pd.DataFrame(list(), index=models.filename.unique())
 
     for f in models.filename.unique():
