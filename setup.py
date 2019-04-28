@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 with open('requirements.txt', 'r') as f:
-    requirements = [str.strip(fn) for fn in f.read().split('\n')]
+    requirements = [str.strip(fn) for fn in f.read().split('\n') if fn != '.']
 
 setup(
     name='voigt',
