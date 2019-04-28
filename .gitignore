@@ -9,3 +9,5 @@ build
 dist
 *.spec
 input/
+test_input/
+tmp.txt
