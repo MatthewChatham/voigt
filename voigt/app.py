@@ -9,6 +9,7 @@ from flask import send_file
 from os.path import join
 import os
 import json
+import base64
 
 
 if os.environ.get('STACK'):
@@ -26,9 +27,12 @@ INSTRUCTIONS = '''
                     Enter a bin width, then select up to 10 partitions.
                     When you're done, click "Generate Output File".
                 '''
+UPLOAD_FOLDER = join(BASE_DIR, 'input')
+ALLOWED_EXTENSIONS = set(['txt'])
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 server = app.server
 
 
@@ -56,6 +60,26 @@ app.layout = html.Div([
         html.H6('Instructions'),
         html.P(INSTRUCTIONS)
     ]),
+    dcc.Upload(
+        id='upload-data',
+        children=html.Div([
+            'Drag and Drop or ',
+            html.A('Select Files')
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        },
+        # Allow multiple files to be uploaded
+        multiple=True
+    ),
+    html.Div(id='output-data-upload'),
     dcc.Input(
         id='bin-width',
         value=100,
@@ -100,8 +124,23 @@ app.layout = html.Div([
     html.P('Select a partition', id='selection'),
     dcc.Graph(id='plot', figure=countplot(DATA=DATA)),
 
-    html.Div(id='splits')  # , style={'display': 'none'})
+    html.Div(id='state')  # , style={'display': 'none'})
 ])
+
+
+@app.callback(Output('output-data-upload', 'children'),
+              [Input('upload-data', 'contents')],
+              [State('upload-data', 'filename'),
+               State('upload-data', 'last_modified')])
+def upload(list_of_contents, list_of_names, list_of_dates):
+    if list_of_contents is not None:
+        for i, c in enumerate(list_of_contents):
+            s = c.split(',')[1]
+            s = base64.b64decode(s).decode()
+            subfolder = 'input' if env == 'Heroku' else 'test_input'
+            with open(join(BASE_DIR, subfolder, list_of_names[i]), 'w') as f:
+                f.write(s)
+        return list_of_names
 
 
 @app.callback(Output('selection', 'children'), [Input('split-point', 'value')])
@@ -113,13 +152,13 @@ def update_selection_prompt(split):
 
 
 @app.callback(
-    Output('splits', 'children'),
+    Output('state', 'children'),
     [
         Input('add-split', 'n_clicks_timestamp'),
         Input('remove-split', 'n_clicks_timestamp'),
         Input('split-point', 'value')
     ],
-    [State('splits', 'children')]
+    [State('state', 'children')]
 )
 def update_state(add, remove, split_point, state):
     if add == 0 and remove == 0:
@@ -148,9 +187,9 @@ def update_state(add, remove, split_point, state):
         Input('type', 'value'),
         Input('split-point', 'value')
     ],
-    [State('splits', 'children')]
+    [State('state', 'children')]
 )
-def update_plot(bin_width, scale, chart_type, split_point, splits):
+def update_plot(bin_width, scale, chart_type, split_point, state):
     funcs = {'count': countplot, 'area': areaplot}
     return funcs[chart_type](
         bin_width,
@@ -163,12 +202,13 @@ def update_plot(bin_width, scale, chart_type, split_point, splits):
 @app.callback(
     Output('dl_link', 'style'),
     [Input('submit', 'n_clicks')],
-    [State('splits', 'children')]
+    [State('state', 'children')]
 )
-def submit(n_clicks, splits):
+def submit(n_clicks, state):
     if n_clicks is None:
         return {'display': 'none'}
     if n_clicks is not None:
+        splits = json.loads(state)['splits']
         aggregate_all_files(splits, get_data())
         return {}
 
