@@ -2,14 +2,17 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
-from extract import get_data
-from drawing import countplot, areaplot
-from aggregate import aggregate_all_files
 from flask import send_file
 from os.path import join
 import os
 import json
 import base64
+from calendar import timegm
+from time import gmtime
+
+from voigt.extract import get_data
+from voigt.drawing import countplot, areaplot
+from voigt.aggregate import aggregate_all_files
 
 
 if os.environ.get('STACK'):
@@ -85,7 +88,6 @@ app.layout = html.Div([
         value=100,
         placeholder='Enter bin width (default: 100)',
         type='number',
-        inputmode='numeric',
         style={'width': '250px', 'title': 'asdf'},
         min=10, max=100, step=10
     ),
@@ -113,7 +115,6 @@ app.layout = html.Div([
         id='split-point',
         placeholder='Enter next split point',
         type='number',
-        inputmode='numeric',
         style={'width': '250px', 'title': 'asdf'},
         min=0, max=1000, step=10
     ),
@@ -173,6 +174,7 @@ def update_state(add, remove, split_point, state):
         if len(state['splits']) > 0:
             state['splits'].pop()
 
+    state['splits'] = sorted(state['splits'])
     state['add'] = add
     state['remove'] = remove
 
@@ -217,7 +219,7 @@ def submit(n_clicks, state):
 def download_csv():
     return send_file(join(BASE_DIR, 'output', 'output.csv'),
                      mimetype='text/csv',
-                     attachment_filename='output.csv',
+                     attachment_filename=f'output_{int(timegm(gmtime()))}.csv',
                      as_attachment=True)
 
 

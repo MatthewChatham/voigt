@@ -1,1 +1,1 @@
-web: gunicorn voigt.app:server
+web: gunicorn main:server

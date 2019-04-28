@@ -1,5 +1,5 @@
 import plotly.graph_objs as go
-from aggregate import compute_bin_areas
+from .aggregate import compute_bin_areas
 import numpy as np
 
 

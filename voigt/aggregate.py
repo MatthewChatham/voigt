@@ -5,7 +5,7 @@ import numpy as np
 from scipy.special import wofz
 from scipy.integrate import quad
 
-from extract import get_data
+from .extract import get_data
 
 if os.environ.get('STACK'):
     env = 'Heroku'
