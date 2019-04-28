@@ -17,7 +17,8 @@ def get_data():
     `BASE_DIR/files/` directory into a single dataframe.
     """
     res = pd.DataFrame()
-    files = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
+    files = [f for f in os.listdir(
+        join(BASE_DIR, 'input')) if f.endswith('.txt')]
     for f in files:
         res = pd.concat([res, extract_from_file(
             os.path.join(BASE_DIR, 'input/', f))], sort=True)
