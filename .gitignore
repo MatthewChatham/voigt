@@ -8,7 +8,6 @@ build
 *.csv
 dist
 *.spec
-input/
 test_input/
 tmp.txt
 *.egg-info/
