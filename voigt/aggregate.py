@@ -27,9 +27,11 @@ test_partitions = [(x, test_splits[i + 1])
 FILES = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
 
 
-def Voigt(x, sigma, gamma):
-    return np.real(wofz((x + 1j * gamma) / sigma / np.sqrt(2))) / sigma\
-        / np.sqrt(2 * np.pi)
+def Voigt(x, center, amplitude, sigma, gamma):
+    z = (x - center + 1j * gamma) / (sigma * np.sqrt(2))
+    numerator = np.real(wofz(z))
+    denominator = sigma * np.sqrt(2 * np.pi)
+    return numerator / denominator
 
 
 def compute_bin_areas(bins, DATA):
@@ -42,7 +44,8 @@ def compute_bin_areas(bins, DATA):
             model_prefix = str.split(model.variable, '_')[0]
             sigma = model[model_prefix + '_sigma']
             gamma = model[model_prefix + '_gamma']
-            a, e = quad(lambda x: Voigt(x, sigma, gamma), b[0], b[1])
+            a, e = quad(lambda x: Voigt(x, center=model.value, amplitude=model.loc[
+                        model_prefix + '_amplitude'], sigma=sigma, gamma=gamma), b[0], b[1])
             areas[i] += 0 if np.isnan(a) else a * \
                 model[model_prefix + '_amplitude']
     return areas
@@ -62,8 +65,12 @@ def composition(bounds, models):
     bin_area = 0
     for idx, model in models.iterrows():
         prefix = model.variable[:model.variable.index('_')]
-        a, e = quad(lambda x: Voigt(
-            x, model[prefix + '_sigma'], model[prefix + '_gamma']), *bounds)
+
+        sigma = model.loc[prefix + '_sigma']
+        gamma = sigma
+        amplitude = model.loc[prefix + '_amplitude']
+        a, e = quad(lambda x: Voigt(x, center=model.value,
+                                    amplitude=amplitude, sigma=sigma, gamma=gamma), **bounds)
         if e > 0.01:
             msg = f'''High error of {e} for composition on model
             {model.filename}/{prefix} in bounds {bounds}.'''
@@ -126,9 +133,13 @@ def fwhm(bounds, models):
 
         for idx, model in models.iterrows():
             prefix = model.variable[:model.variable.index('_')]
+            sigma = model.loc[prefix + '_sigma']
+            gamma = sigma
+            amplitude = model.loc[prefix + '_amplitude']
+
             vals.append(
-                Voigt(x, model[prefix + '_sigma'], model[prefix + '_gamma'])
-            )
+                Voigt(x, center=model.value,
+                      amplitude=amplitude, sigma=sigma, gamma=gamma))
         return sum(vals)
 
     x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist()

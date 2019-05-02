@@ -16,18 +16,27 @@ def get_data():
     Extracts data from all files in the
     `BASE_DIR/files/` directory into a single dataframe.
     """
+
     res = pd.DataFrame()
+
+    # Get all text files in input/
     files = [f for f in os.listdir(
         join(BASE_DIR, 'input')) if f.endswith('.txt')]
+
     for f in files:
         res = pd.concat([res, extract_from_file(
             os.path.join(BASE_DIR, 'input/', f))], sort=True)
+
     id_vars = pd.Series(res.columns)
-    id_vars = id_vars.loc[~(id_vars.str.contains(
-        'pm') & id_vars.str.contains('center'))]
+
+    mask = ~(id_vars.str.contains('(p|n)m', regex=True)
+             & id_vars.str.contains('center'))
+    id_vars = id_vars.loc[mask]
+
     res = res.melt(id_vars=id_vars)
     res = res.loc[res.value.notnull()]
     res.to_csv(join(BASE_DIR, 'output', 'data.csv'))
+
     return res
 
 

@@ -1,5 +1,5 @@
 import plotly.graph_objs as go
-from .aggregate import compute_bin_areas
+from .aggregate import compute_bin_areas, Voigt
 import numpy as np
 
 
@@ -8,7 +8,9 @@ MIN, MAX = 0, 1000
 # todo: only recompute area if bin width changes
 # todo: find and fix bugs with partition selection on area plot
 
-def countplot(bin_width=50, shapes=[], scale='linear', selectedData=None, DATA=None):
+
+def countplot(bin_width=50, shapes=[],
+              scale='linear', selectedData=None, DATA=None):
     figure = {
         'data': [go.Histogram(x=DATA.value,
                               xbins=dict(
@@ -36,16 +38,13 @@ def countplot(bin_width=50, shapes=[], scale='linear', selectedData=None, DATA=N
     return figure
 
 
-
-def areaplot(bin_width=50, shapes=[], scale='linear', selectedData=None, DATA=None):
+def areaplot(bin_width=50, shapes=[],
+             scale='linear', selectedData=None, DATA=None):
     nbins = (MAX - MIN) / int(bin_width)
     bins = np.linspace(MIN, MAX, nbins + 1)
     bins = [(x, bins[i + 1])
             for i, x in enumerate(bins) if i < len(bins) - 1]
     areas = compute_bin_areas(bins, DATA)
-
-    # max_ = max(areas)
-    # range_ = [0,max([500, max_])] if scale == 'linear' else [0,max([500, max_])]
 
     figure = {
         'data': [go.Bar(x=[x[0] for x in bins],
@@ -56,6 +55,51 @@ def areaplot(bin_width=50, shapes=[], scale='linear', selectedData=None, DATA=No
             opacity=0.75
         )
         ],
+        'layout': go.Layout({
+            'shapes': shapes,
+            'dragmode': 'select',
+            'yaxis': dict(
+                type=scale,
+                autorange=True
+                # range=range_
+
+            )
+        })
+    }
+
+    return figure
+
+
+def curveplot(bin_width=50, shapes=[],
+              scale='linear', selectedData=None, DATA=None):
+
+    models = DATA
+
+    X = np.linspace(30, 1000, 1000 - 30 + 1)
+
+    data = list()
+
+    for idx, m in models.iterrows():
+
+        prefix = str.split(m.variable, '_')[0]
+
+        sigma = m.loc[prefix + '_sigma']
+        gamma = sigma
+
+        amplitude = m.loc[prefix + '_amplitude']
+
+        trace = go.Scatter(
+            x=X,
+            y=Voigt(X, center=m.value, sigma=sigma,
+                     gamma=gamma, amplitude=amplitude),
+            mode='lines',
+            name=m.filename + f'/{prefix}'
+        )
+
+        data.append(trace)
+
+    figure = {
+        'data': data,
         'layout': go.Layout({
             'shapes': shapes,
             'dragmode': 'select',

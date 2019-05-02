@@ -11,7 +11,7 @@ from calendar import timegm
 from time import gmtime
 
 from voigt.extract import get_data
-from voigt.drawing import countplot, areaplot
+from voigt.drawing import countplot, areaplot, curveplot
 from voigt.aggregate import aggregate_all_files
 
 
@@ -106,6 +106,7 @@ app.layout = html.Div([
         options=[
             {'label': 'Count', 'value': 'count'},
             {'label': 'Area', 'value': 'area'},
+            {'label': 'Curve', 'value': 'curve'}
         ],
         value='count',
         placeholder='Select histogram type',
@@ -192,7 +193,7 @@ def update_state(add, remove, split_point, state):
     [State('state', 'children')]
 )
 def update_plot(bin_width, scale, chart_type, split_point, state):
-    funcs = {'count': countplot, 'area': areaplot}
+    funcs = {'count': countplot, 'area': areaplot, 'curve': curveplot}
     return funcs[chart_type](
         bin_width,
         DATA=DATA,
