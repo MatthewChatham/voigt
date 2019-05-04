@@ -62,20 +62,33 @@ def composition(bounds, models):
 
     Note: var is of the format "comp_min_max"
     """
+
     bin_area = 0
+
     for idx, model in models.iterrows():
+
         prefix = model.variable[:model.variable.index('_')]
 
         sigma = model.loc[prefix + '_sigma']
         gamma = sigma
         amplitude = model.loc[prefix + '_amplitude']
-        a, e = quad(lambda x: Voigt(x, center=model.value,
-                                    amplitude=amplitude, sigma=sigma, gamma=gamma), **bounds)
+        params = dict(
+            center=model.value,
+            amplitude=amplitude,
+            sigma=sigma,
+            gamma=gamma
+        )
+        func = lambda x: Voigt(x, **params)
+
+        a, e = quad(func, *bounds)
+
         if e > 0.01:
             msg = f'''High error of {e} for composition on model
             {model.filename}/{prefix} in bounds {bounds}.'''
             raise Warning(msg)
+
         bin_area += a * model[prefix + '_amplitude']
+
     return f'comp_{bounds[0]}_{bounds[1]}', bin_area
 
 

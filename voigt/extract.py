@@ -1,9 +1,13 @@
+from .patterns import result_patterns, fit_patterns, param_patterns
+
 import os
 from os.path import join, basename
 import re
 import pandas as pd
 
-from .patterns import result_patterns, fit_patterns, param_patterns
+import warnings
+warnings.filterwarnings("ignore", 'This pattern has match groups')
+
 
 if os.environ.get('STACK'):
     env = 'Heroku'
