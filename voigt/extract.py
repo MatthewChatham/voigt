@@ -1,7 +1,9 @@
 import os
-from os.path import join
+from os.path import join, basename
 import re
 import pandas as pd
+
+from .patterns import result_patterns, fit_patterns, param_patterns
 
 if os.environ.get('STACK'):
     env = 'Heroku'
@@ -11,126 +13,102 @@ else:
     BASE_DIR = '/Users/matthew/freelance/voigt'
 
 
-def get_data():
+def read_input():
     """
-    Extracts data from all files in the
-    `BASE_DIR/files/` directory into a single dataframe.
+    Reads and parses files in BASE_DIR/input/,
+    returning a dataframe with one model per record.
     """
 
+    # The dataframe to be returned
     res = pd.DataFrame()
 
-    # Get all text files in input/
-    files = [f for f in os.listdir(
-        join(BASE_DIR, 'input')) if f.endswith('.txt')]
+    # Get all text files in BASE_DIR/input/
+    input_dir = join(BASE_DIR, 'input')
+    files = [f for f in os.listdir(input_dir) if f.endswith('.txt')]
 
+    # Concatenate each file record (containing all models for that file
+    # in one row) to `res`
     for f in files:
-        res = pd.concat([res, extract_from_file(
-            os.path.join(BASE_DIR, 'input/', f))], sort=True)
+        pth = os.path.join(BASE_DIR, 'input/', f)
+        res = pd.concat([res, parse_file(pth)], sort=True)
 
+    # Melt `res` so each record corresponds to a single model
     id_vars = pd.Series(res.columns)
-
-    mask = ~(id_vars.str.contains('(p|n)m', regex=True)
-             & id_vars.str.contains('center'))
+    mask = ~(id_vars.str.contains('(p|n)m', regex=True) &
+             id_vars.str.contains('center'))
     id_vars = id_vars.loc[mask]
-
     res = res.melt(id_vars=id_vars)
     res = res.loc[res.value.notnull()]
+
+    # Write `res` to BASE_DIR/output/data.csv
     res.to_csv(join(BASE_DIR, 'output', 'data.csv'))
 
     return res
 
 
-def extract_from_file(filename):
+def parse_file(path):
     """
-    Given a single filename, extracts data into a dict structure
-    with one column per model parameter and evaluation metric..
+    Given a `path` to a file, extracts data into a one-row
+    pandas dataframe record containing all models in the file.
     """
 
-    # print(f'Extracting from {filename}')
+    # Combined later into a single record to be returned
+    results = dict()
+    pos_fit_stats = dict()
+    neg_fit_stats = dict()
+    pos_params = dict()
+    neg_params = dict()
 
-    pats = dict(
-        pos_peaks=re.compile(r'Number of Positive Peaks: (\d+)'),
-        neg_peaks=re.compile(r'Number of Negative Peaks: (\d+)'),
-        mass_30=re.compile(r'Mass at 30 C  : ([\d.]+) mg  --- 100 % '),
-        mass_950=re.compile(
-            r'Mass at 950\.0C : ([\d.]+) mg  --- ([\d.]+) % '),
-        mass_pct_950=re.compile(
-            r'Mass at 950\.0C : [\d.]+ mg  --- ([\d.]+) % '),
-        mass_loss_pct=re.compile(
-            r'Mass loss % \(start mass - end mass\)/\(start mass\)\*100 between 60\.0C and 950\.0C  : ([\d.]+) %'),
-        loss_amorph=re.compile(
-            r'Mass loss to amorphous carbon temp450\.0C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        loss_amorph_pct=re.compile(
-            r'Mass loss to amorphous carbon temp450\.0C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        loss_60=re.compile(
-            r'Mass loss from 60\.0 C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        loss_60_pct=re.compile(
-            r'Mass loss from 60\.0 C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
-        peak_integration=re.compile(
-            r'Peak Integration: ([\d.]+) % '),
-    )
-
-    mpats = dict(
-        function_evals=re.compile(r'function evals   = (\d+)'),
-        data_points=re.compile(r'data points      = (\d+)'),
-        chi_square=re.compile(r'chi-square         = ([-e.\d]+)'),
-        reduced_chi_square=re.compile(r'reduced chi-square = ([-e.\d]+)'),
-        aic=re.compile(r'Akaike info crit   = ([-e.\d]+)'),
-        bic=re.compile(r'Bayesian info crit = ([-e.\d]+)'),
-    )
-
-    mparams = dict(
-        sigma=r'm{}_sigma:\s+([.\d]+)',
-        center=r'm{}_center:\s+([.\d]+)',
-        amplitude=r'm{}_amplitude:\s+([.\d]+)',
-        gamma=r'm{}_gamma:\s+([.\d]+)',
-        fwhm=r'm{}_fwhm:\s+([.\d]+)',
-        height=r'm{}_height:\s+([.\d]+)',
-    )
-
-    res = pats.copy()
-    pmeval = mpats.copy()
-    pmparams = dict()
-    nmparams = dict()
-
-    with open(filename, 'r') as f:
+    with open(path, 'r') as f:
         txt = f.read()
-        for k, v in pats.items():
-            res[k] = float(v.search(txt).group(1))
-            # print(k, float(res[k]))
 
-        pos_model_parameters = re.compile(
-            r'Positive model parameters:(.+)(Negative)?', re.DOTALL)
-        pos = pos_model_parameters.search(txt).group(1).strip()
+        # Save TGA results to `results`
+        for k, v in result_patterns.items():
+            results[k] = float(v.search(txt).group(1))
 
-        if res['neg_peaks'] > 0:
+        # Extract info for any negative peaks
+        if results['neg_peaks'] > 0:
+
+            # Get string `neg` containing positive model parameters
             neg_model_parameters = re.compile(
                 r'Negative model parameters:(.+\Z)', re.DOTALL)
             neg = neg_model_parameters.search(txt).group(1).strip()
 
-            for i in range(int(res['neg_peaks'])):
-                for k, v in mparams.items():
+            # Get negative peak fit statistics
+            for k, v in fit_patterns.items():
+                neg_fit_stats['neg_' + k] = float(v.search(neg).group(1))
+
+            # Parse negative model parameters
+            for i in range(int(results['neg_peaks'])):
+                for k, v in param_patterns.items():
                     key = 'nm{}_'.format(i) + k
-                    pat = re.compile(mparams[k].format(i))
-                    nmparams[key] = float(pat.search(neg).group(1))
+                    pat = re.compile(param_patterns[k].format(i))
+                    neg_params[key] = float(pat.search(neg).group(1))
 
-        for k, v in pmeval.items():
-            pmeval[k] = float(v.search(pos).group(1))
-            # print(k, pmeval[k])
+        # Text containing positive model info
+        pos_model_parameters = re.compile(
+            r'Positive model parameters:(.+)(Negative)?', re.DOTALL)
+        pos = pos_model_parameters.search(txt).group(1).strip()
 
-        # print(f'Found {res["pos_peaks"]} positive peaks....')
-        for i in range(int(res['pos_peaks'])):
-            for k, v in mparams.items():
+        # Get positive peak fit statistics
+        for k, v in fit_patterns.items():
+            pos_fit_stats['pos_' + k] = float(v.search(pos).group(1))
+
+        # Parse positive model params
+        for i in range(int(results['pos_peaks'])):
+            for k, v in param_patterns.items():
                 key = 'pm{}_'.format(i) + k
-                pat = re.compile(mparams[k].format(i))
-                pmparams[key] = float(pat.search(pos).group(1))
+                pat = re.compile(param_patterns[k].format(i))
+                pos_params[key] = float(pat.search(pos).group(1))
 
+        # Set up the file record (multiple models per row)
         record = {
-            **res,
-            **pmeval,
-            **pmparams,
-            **nmparams,
-            'filename': filename
+            **results,
+            **pos_fit_stats,
+            **neg_fit_stats,
+            **pos_params,
+            **neg_params,
+            'filename': basename(path)
         }
 
         return pd.DataFrame([record])

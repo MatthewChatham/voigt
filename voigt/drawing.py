@@ -9,6 +9,25 @@ MIN, MAX = 0, 1000
 # todo: find and fix bugs with partition selection on area plot
 
 
+def construct_shapes(scale='linear', split_point=None, max_=10):
+    shapes = []
+
+    if split_point:
+        shapes.append({
+            'type': 'line',
+            'x0': split_point,
+            'y0': 0,
+            'x1': split_point,
+            'y1': max_,
+            'line': {
+                'color': 'rgb(55, 128, 191)',
+                'width': 3,
+            },
+        })
+
+    return shapes
+
+
 def countplot(bin_width=50, shapes=[],
               scale='linear', selectedData=None, DATA=None):
     figure = {

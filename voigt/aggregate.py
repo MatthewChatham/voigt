@@ -5,7 +5,7 @@ import numpy as np
 from scipy.special import wofz
 from scipy.integrate import quad
 
-from .extract import get_data
+from .extract import read_input
 
 if os.environ.get('STACK'):
     env = 'Heroku'
@@ -17,7 +17,7 @@ else:
 # TODO: make sure partitions always includes (-np.inf, 0)
 # TODO: make sure to segregate "negative" models
 
-test_data = get_data()
+test_data = read_input()
 test_splits = [250, 650]
 test_splits.append(1000)
 test_splits.insert(0, 0)
