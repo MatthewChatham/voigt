@@ -9,6 +9,8 @@ else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
 
+print('')
+print('#'*78)
 print(f'Running in {os.getcwd()} on {env} environment.')
 
 server = app.server

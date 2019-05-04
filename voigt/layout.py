@@ -77,5 +77,7 @@ layout = html.Div([
     html.P('Select a partition', id='selection'),
     dcc.Graph(id='plot', figure=countplot(DATA=read_input())),
 
-    html.Div(id='state')  # , style={'display': 'none'})
+    html.Div(id='state'),  # , style={'display': 'none'})
+    html.Div(id='areas-state'),
+    html.Div(id='bin-width-state')
 ])

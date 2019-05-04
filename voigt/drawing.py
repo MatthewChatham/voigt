@@ -58,12 +58,15 @@ def countplot(bin_width=50, shapes=[],
 
 
 def areaplot(bin_width=50, shapes=[],
-             scale='linear', selectedData=None, DATA=None):
+             scale='linear', selectedData=None, DATA=None, areas=None):
     nbins = (MAX - MIN) / int(bin_width)
     bins = np.linspace(MIN, MAX, nbins + 1)
     bins = [(x, bins[i + 1])
             for i, x in enumerate(bins) if i < len(bins) - 1]
-    areas = compute_bin_areas(bins, DATA)
+    
+    if areas is None:
+        print('COMPUTING BIN AREAS')
+        areas = compute_bin_areas(bins, DATA)
 
     figure = {
         'data': [go.Bar(x=[x[0] for x in bins],

@@ -51,7 +51,7 @@ def compute_bin_areas(bins, DATA):
     return areas
 
 
-def composition(bounds, models):
+def composition(bounds, models, pos_neg='pos'):
     """
     Given a tuple of bounds and a df of models,
     compute the total area within the bounds.
@@ -62,6 +62,11 @@ def composition(bounds, models):
 
     Note: var is of the format "comp_min_max"
     """
+
+    if pos_neg == 'pos':
+        models = models.loc[models.variable.str.startswith('pm')]
+    elif pos_neg == 'neg':
+        models = models.loc[models.variable.str.startswith('nm')]
 
     bin_area = 0
 
@@ -89,10 +94,10 @@ def composition(bounds, models):
 
         bin_area += a * model[prefix + '_amplitude']
 
-    return f'comp_{bounds[0]}_{bounds[1]}', bin_area
+    return f'comp_{pos_neg}_{bounds[0]}_{bounds[1]}', bin_area
 
 
-def peak_position(bounds, models):
+def peak_position(bounds, models, pos_neg='pos'):
     """
     Given a tuple of partition bounds and a df of models,
     compute weighted average peak position (WAPP) within bounds.
@@ -106,6 +111,12 @@ def peak_position(bounds, models):
     -----
     (col, val) : tuple(str, float), (column name, WAPP)
     """
+
+    if pos_neg == 'pos':
+        models = models.loc[models.variable.str.startswith('pm')]
+    elif pos_neg == 'neg':
+        models = models.loc[models.variable.str.startswith('nm')]
+
     mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
     models = models.loc[mask]
 
@@ -117,11 +128,11 @@ def peak_position(bounds, models):
         prefix = model.variable[:model.variable.index('_')]
         weights[i] = model[prefix + '_amplitude']
 
-    return f'wapp_{bounds[0]}_{bounds[1]}', \
+    return f'wapp_{pos_neg}_{bounds[0]}_{bounds[1]}', \
         np.dot(centers, weights) / sum(weights)
 
 
-def fwhm(bounds, models):
+def fwhm(bounds, models, pos_neg='pos'):
     """
     Given a tuple of partition bounds and a df of models,
     compute the full width half maximum (FWHM) of the sum
@@ -137,6 +148,11 @@ def fwhm(bounds, models):
     (col, val) : tuple(str, float), (column name, FWHM)
     """
     # print(bounds)
+
+    if pos_neg == 'pos':
+        models = models.loc[models.variable.str.startswith('pm')]
+    elif pos_neg == 'neg':
+        models = models.loc[models.variable.str.startswith('nm')]
 
     mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
     models = models.loc[mask]
@@ -165,7 +181,7 @@ def fwhm(bounds, models):
     except ValueError:
         raise RuntimeError(f'Failed to find FWHM within bounds {bounds}.')
 
-    return f'fwhm_{bounds[0]}_{bounds[1]}', upperbound - lowerbound
+    return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', upperbound - lowerbound
 
 
 AGGREGATIONS = {
@@ -189,30 +205,23 @@ def aggregate_single_file(partitions, models):
             # agg is a function that computes one aggregate for one partition,
             # returning a colname string which includes both the partition and
             # the aggregation
-            col, val = func(p, models)
+
+            # Positive models
+            col, val = func(p, models, pos_neg='pos')
+            res_dict[col] = val
+
+            # Negative models
+            col, val = func(p, models, pos_neg='neg')
             res_dict[col] = val
 
     return res_dict
 
 
-def aggregate_all_files(splits, models):
+def generate_output_file(splits, models):
     """
-
-    Given a set of partitions and data from input files,
-    compute the following aggregates for each file.
-
-    -----
-
-    Input
-    -----
-    splits      : list, partition split points
-    data        : DataFrame, model data read in from files
-
-
-    Returns
-    -----
-    res_df      : DataFrame, as specified in contract
-
+    Given an iterable of `splits` and a df of `models`,
+    computes model aggregates for each region of the partition
+    resulting from splits.
     """
     partitions = splits.copy()
     partitions.append(1000)
@@ -233,7 +242,7 @@ def aggregate_all_files(splits, models):
 
 
 def test():
-    result = aggregate_all_files(test_partitions, test_data)
+    result = generate_output_file(test_partitions, test_data)
     # print('Result:', result.columns, '\n', result.head())
     result.to_csv(join(BASE_DIR, 'output', 'dev_result.csv'))
 

@@ -10,7 +10,7 @@ from calendar import timegm
 from time import gmtime
 
 from voigt.drawing import countplot, areaplot, curveplot, construct_shapes
-from voigt.aggregate import aggregate_all_files
+from voigt.aggregate import generate_output_file
 
 from .server import app
 from .extract import read_input
@@ -49,17 +49,48 @@ def update_selection_prompt(split):
 
 
 @app.callback(
+    [Output('areas-state', 'children'), Output('bin-width-state', 'children')],
+    [Input('bin-width', 'value')],
+    [
+        State('bin-width-state', 'children'),
+        State('areas-state', 'children'),
+        State('type', 'value'),
+        State('plot', 'figure')
+    ]
+)
+def update_areas_state(bin_width, bin_width_state, areas_state, chart_type, figure):
+    if bin_width == 100 and chart_type == 'count' and areas_state is None:
+        return '{"areas": {}}', 100
+
+    areas_state = json.loads(areas_state)
+
+    if chart_type == 'area':
+
+        areas = figure['data'][0]['y']
+        areas_state['areas'].update({str(bin_width_state): areas})
+
+    return json.dumps(areas_state), bin_width
+
+
+@app.callback(
     Output('state', 'children'),
     [
         Input('add-split', 'n_clicks_timestamp'),
         Input('remove-split', 'n_clicks_timestamp'),
-        Input('split-point', 'value')
+        Input('split-point', 'value'),
     ],
-    [State('state', 'children')]
+    [
+        State('state', 'children'),
+        State('plot', 'figure'),
+        State('bin-width', 'value'),
+        State('type', 'value'),
+    ]
 )
-def update_state(add, remove, split_point, state):
-    if add == 0 and remove == 0:
-        return '{"splits":[], "add":0, "remove":0}'
+def update_state(add, remove, split_point, state, figure, bin_width, chart_type):
+
+    # Initial load
+    if add == 0 and remove == 0 and chart_type == 'count':
+        return '{"splits":[], "add":0, "remove":0, "areas": {}}'
 
     state = json.loads(state)
 
@@ -74,6 +105,13 @@ def update_state(add, remove, split_point, state):
     state['add'] = add
     state['remove'] = remove
 
+    if chart_type == 'area':
+        areas = figure['data'][0].get('y')
+        if areas is not None:
+            state['areas'][bin_width] = areas
+
+    # print(state)
+
     return json.dumps(state)
 
 
@@ -85,16 +123,32 @@ def update_state(add, remove, split_point, state):
         Input('type', 'value'),
         Input('split-point', 'value')
     ],
-    [State('state', 'children')]
+    [
+        State('state', 'children'),
+        State('areas-state', 'children')
+    ]
 )
-def update_plot(bin_width, scale, chart_type, split_point, state):
+def update_plot(bin_width, scale, chart_type, split_point, state, areas_state):
     funcs = {'count': countplot, 'area': areaplot, 'curve': curveplot}
-    return funcs[chart_type](
-        bin_width,
+
+    kwargs = dict(
+        bin_width=bin_width,
         DATA=read_input(),
         scale=scale,
-        shapes=construct_shapes(split_point=split_point)
+        shapes=construct_shapes(split_point=split_point),
     )
+
+    if areas_state is not None and chart_type == 'area':
+
+        areas_state = json.loads(areas_state)
+
+        cached = areas_state['areas'].get(str(bin_width)) is not None
+        if cached:
+            print('FOUND CACHED AREA')
+            areas = areas_state['areas'][str(bin_width)]
+            kwargs['areas'] = areas
+
+    return funcs[chart_type](**kwargs)
 
 
 @app.callback(
@@ -107,7 +161,7 @@ def submit(n_clicks, state):
         return {'display': 'none'}
     if n_clicks is not None:
         splits = json.loads(state)['splits']
-        aggregate_all_files(splits, read_input())
+        generate_output_file(splits, read_input())
         return {}
 
 
