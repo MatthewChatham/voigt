@@ -31,21 +31,31 @@ ALLOWED_EXTENSIONS = set(['txt'])
                State('upload-data', 'last_modified')])
 def upload(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
+
+        # Delete previous files
+        for existing_file in os.listdir(join(BASE_DIR, 'input')):
+            if existing_file != '.hold':
+                os.remove(join(BASE_DIR, 'input', existing_file))
+
         for i, c in enumerate(list_of_contents):
             s = c.split(',')[1]
             s = base64.b64decode(s).decode()
-            subfolder = 'input' if env == 'Heroku' else 'test_input'
-            with open(join(BASE_DIR, subfolder, list_of_names[i]), 'w') as f:
+            with open(join(BASE_DIR, 'input', list_of_names[i]), 'w') as f:
                 f.write(s)
-        return list_of_names
+
+        return str(list_of_names)
 
 
-@app.callback(Output('selection', 'children'), [Input('split-point', 'value')])
-def update_selection_prompt(split):
-    if split is None:
+@app.callback(
+    Output('selection', 'children'),
+    [Input('state', 'children')],
+)
+def update_selection_prompt(state):
+    if state is None:
         return 'Select a split point.'
     else:
-        return f'You have selected {split}.'
+        state = json.loads(state)
+        return f'Current splits: {str(state["splits"])}.'
 
 
 @app.callback(
@@ -90,7 +100,7 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
 
     # Initial load
     if add == 0 and remove == 0 and chart_type == 'count':
-        return '{"splits":[], "add":0, "remove":0, "areas": {}}'
+        return '{"splits":[], "add":0, "remove":0}'
 
     state = json.loads(state)
 
@@ -105,10 +115,10 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
     state['add'] = add
     state['remove'] = remove
 
-    if chart_type == 'area':
-        areas = figure['data'][0].get('y')
-        if areas is not None:
-            state['areas'][bin_width] = areas
+    # if chart_type == 'area':
+    #     areas = figure['data'][0].get('y')
+    #     if areas is not None:
+    #         state['areas'][bin_width] = areas
 
     # print(state)
 
@@ -121,21 +131,22 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
         Input('bin-width', 'value'),
         Input('scale', 'value'),
         Input('type', 'value'),
-        Input('split-point', 'value')
+        # Input('split-point', 'value'),
+        Input('parse-data-and-refresh-chart', 'n_clicks')
     ],
     [
         State('state', 'children'),
         State('areas-state', 'children')
     ]
 )
-def update_plot(bin_width, scale, chart_type, split_point, state, areas_state):
+def update_plot(bin_width, scale, chart_type, refresh_clicks, state, areas_state):
     funcs = {'count': countplot, 'area': areaplot, 'curve': curveplot}
 
     kwargs = dict(
         bin_width=bin_width,
         DATA=read_input(),
         scale=scale,
-        shapes=construct_shapes(split_point=split_point),
+        shapes=[],  # construct_shapes(split_point=split_point),
     )
 
     if areas_state is not None and chart_type == 'area':
