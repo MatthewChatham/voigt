@@ -29,7 +29,11 @@ def construct_shapes(scale='linear', split_point=None, max_=10):
 
 
 def countplot(bin_width=50, shapes=[],
-              scale='linear', selectedData=None, DATA=None):
+              scale='linear', selectedData=None, DATA=None, exclude_negative=True):
+
+    if exclude_negative:
+        DATA = DATA.loc[~DATA.variable.str.contains('nm')]
+
     figure = {
         'data': [go.Histogram(x=DATA.value,
                               xbins=dict(
@@ -58,12 +62,16 @@ def countplot(bin_width=50, shapes=[],
 
 
 def areaplot(bin_width=50, shapes=[],
-             scale='linear', selectedData=None, DATA=None, areas=None):
+             scale='linear', selectedData=None, DATA=None, exclude_negative=True, areas=None):
+
+    if exclude_negative:
+        DATA = DATA.loc[~DATA.variable.str.contains('nm')]
+
     nbins = (MAX - MIN) / int(bin_width)
     bins = np.linspace(MIN, MAX, nbins + 1)
     bins = [(x, bins[i + 1])
             for i, x in enumerate(bins) if i < len(bins) - 1]
-    
+
     if areas is None:
         print('COMPUTING BIN AREAS')
         areas = compute_bin_areas(bins, DATA)
@@ -93,7 +101,10 @@ def areaplot(bin_width=50, shapes=[],
 
 
 def curveplot(bin_width=50, shapes=[],
-              scale='linear', selectedData=None, DATA=None):
+              scale='linear', selectedData=None, DATA=None, exclude_negative=True):
+
+    if exclude_negative:
+        DATA = DATA.loc[~DATA.variable.str.contains('nm')]
 
     models = DATA
 
@@ -113,12 +124,63 @@ def curveplot(bin_width=50, shapes=[],
         trace = go.Scatter(
             x=X,
             y=Voigt(X, center=m.value, sigma=sigma,
-                     gamma=gamma, amplitude=amplitude),
+                    gamma=gamma, amplitude=amplitude),
             mode='lines',
-            name=m.filename + f'/{prefix}'
+            name=m.filename.strip('.txt') + f'/{prefix}'
         )
 
         data.append(trace)
+
+    figure = {
+        'data': data,
+        'layout': go.Layout({
+            'shapes': shapes,
+            'dragmode': 'select',
+            'yaxis': dict(
+                type=scale,
+                autorange=True
+                # range=range_
+
+            )
+        })
+    }
+
+    return figure
+
+
+def sumcurveplot(bin_width=50, shapes=[],
+                 scale='linear', selectedData=None, DATA=None, exclude_negative=True):
+
+    if exclude_negative:
+        DATA = DATA.loc[~DATA.variable.str.contains('nm')]
+
+    models = DATA
+
+    def F(x):
+        vals = list()
+
+        for idx, model in models.iterrows():
+            prefix = model.variable[:model.variable.index('_')]
+            sigma = model.loc[prefix + '_sigma']
+            gamma = sigma
+            amplitude = model.loc[prefix + '_amplitude']
+
+            vals.append(
+                Voigt(x, center=model.value,
+                      amplitude=amplitude, sigma=sigma, gamma=gamma))
+        return sum(vals)
+
+    X = np.linspace(30, 1000, 1000 - 30 + 1)
+
+    data = list()
+
+    trace = go.Scatter(
+        x=X,
+        y=[F(x) for x in X],
+        mode='lines',
+    )
+
+    data.append(trace)
 
     figure = {
         'data': data,
