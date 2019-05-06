@@ -128,8 +128,9 @@ def peak_position(bounds, models, pos_neg='pos'):
         prefix = model.variable[:model.variable.index('_')]
         weights[i] = model[prefix + '_amplitude']
 
-    return f'wapp_{pos_neg}_{bounds[0]}_{bounds[1]}', \
-        np.dot(centers, weights) / sum(weights)
+    res = np.dot(centers, weights) / sum(weights)
+
+    return f'wapp_{pos_neg}_{bounds[0]}_{bounds[1]}', res
 
 
 def fwhm(bounds, models, pos_neg='pos'):
@@ -149,6 +150,27 @@ def fwhm(bounds, models, pos_neg='pos'):
     """
     # print(bounds)
 
+    def _is_monotonic_before_and_after_peak(y):
+
+        monotonic = True
+        peak_loc = np.argmax(y)
+        before_peak = y[:peak_loc + 1]
+        after_peak = y[peak_loc:]
+
+        for i, v in enumerate(before_peak):
+            if i == 0:
+                continue
+            if not(v >= before_peak[i - 1]):
+                monotonic = False
+
+        for i, v in enumerate(after_peak):
+            if i == 0:
+                continue
+            if not(v <= after_peak[i - 1]):
+                monotonic = False
+
+        return monotonic
+
     if pos_neg == 'pos':
         models = models.loc[models.variable.str.startswith('pm')]
     elif pos_neg == 'neg':
@@ -156,6 +178,12 @@ def fwhm(bounds, models, pos_neg='pos'):
 
     mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
     models = models.loc[mask]
+
+    if len(models) == 0:
+        return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', np.nan
+
+    print(models.filename.unique())
+    filename = models.filename.unique().tolist()[0]
 
     def F(x):
         vals = list()
@@ -173,15 +201,67 @@ def fwhm(bounds, models, pos_neg='pos'):
 
     x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist()
     y = [F(_) for _ in x]
-    halfmax = max(y) / 2
-    diffs = [int(halfmax - _) for _ in y]
-    try:
-        lowerbound = x[diffs.index(0)]
-        upperbound = x[len(diffs) - diffs[::-1].index(0) - 1]
-    except ValueError:
-        raise RuntimeError(f'Failed to find FWHM within bounds {bounds}.')
 
-    return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', upperbound - lowerbound
+    # save an image of the peak
+    import matplotlib
+    matplotlib.use('PS')
+    import matplotlib.pyplot as plt
+    # print(x,y)
+    fig, ax = plt.subplots()
+    ax.plot(x, y)
+    fig.savefig(join(BASE_DIR, 'output', 'images', f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png'))
+
+    halfmax = max(y) / 2
+    diffs = [(_ - halfmax) for _ in y]
+    first_cross = None
+    last_cross = None
+
+    # Make sure the curve starts and ends below its halfmax,
+    # and is monotonically increasing (decreasing) before (after) peak
+
+    if filename == 'fit_2018-09-07_S18.txt' and bounds[0] == 480 and bounds[1] == 520:
+        print(x)
+        print(y)
+
+    if not(diffs[0] < 0 and diffs[-1] < 0) or not _is_monotonic_before_and_after_peak(y):
+        print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS NOT proper shape')
+        return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', np.nan
+    print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS proper shape')
+
+    for i, d in enumerate(diffs):
+        if i == 0:
+            continue
+
+        if d >= 0 and diffs[i - 1] < 0:
+            first_cross = (x[i - 1], x[i])
+
+        if first_cross is not None and i >= np.argmax(y):
+            if d < 0 and diffs[i - 1] > 0:
+                last_cross = (x[i - 1], x[i])
+
+    print()
+    print()
+    print(filename, ' ----- ', pos_neg, ' ----- ', bounds)
+    print(halfmax, first_cross, last_cross)
+    print(np.argmax(y))
+    print(f'starts and ends below halfmax: {diffs[0] < 0 and diffs[-1] < 0}')
+    print(f'is monotonic before and after peak: {_is_monotonic_before_and_after_peak(y)}')
+    print(y)
+    print()
+    print()
+
+    try:
+        lowerbound = sum(first_cross) / 2 # x[diffs.index(0)]
+        upperbound = sum(last_cross) / 2 # x[len(diffs) - diffs[::-1].index(0) - 1]
+        if abs((upperbound - lowerbound) - (bounds[1] - bounds[0])) < 1e-14:
+            raise ValueError('FWHM is width of bounds')
+        res = upperbound - lowerbound
+    except ValueError:
+        print('Failed to find FWHM')
+        res = np.nan
+        # raise RuntimeError(f'Failed to find FWHM within bounds {bounds}.')
+
+    return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', res
 
 
 AGGREGATIONS = {
