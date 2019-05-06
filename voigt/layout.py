@@ -18,8 +18,7 @@ layout = html.Div([
 
     # Step 1: Upload TGA files
     html.Div([
-        html.H1('Step 1'),
-        html.P('Upload TGA files.'),
+        html.H1('Step 1: Upload TGA Files'),
         dcc.Upload(
             id='upload-data',
             children=html.Div([
@@ -39,53 +38,74 @@ layout = html.Div([
             # Allow multiple files to be uploaded
             multiple=True
         ),
-        html.Button('Parse files and refresh chart',
-                    id='parse-data-and-refresh-chart'),
-        html.Div(id='output-data-upload'),
-    ], style={'width': '33%'}),
+        html.Div(id='output-data-upload', style={'padding': '10px'}),
+    ], style={'width': '50%'}),
 
 
     dcc.Loading(id='loading', type='default', children=[
 
-        html.H1('Step 2'),
-        html.P('Adjust chart parameters'),
-        html.Div([
-            dcc.Input(
-                id='bin-width',
-                value=100,
-                placeholder='Enter bin width (default: 100)',
-                type='number',
-                style={'width': '250px', 'title': 'asdf'},
-                min=10, max=100, step=10
-            ),
-            dcc.Dropdown(
-                id='scale',
-                options=[
-                    {'label': 'Linear', 'value': 'linear'},
-                    {'label': 'Log', 'value': 'log'},
-                ],
-                value='linear',
-                placeholder='Select scale',
-                style={'width': '250px'}
-            ),
-            dcc.Dropdown(
-                id='type',
-                options=[
-                    {'label': 'Count', 'value': 'count'},
-                    {'label': 'Area', 'value': 'area'},
-                    {'label': 'Curve', 'value': 'curve'}
-                ],
-                value='count',
-                placeholder='Select histogram type',
-                style={'width': '250px'}
-            ), ], style={'width': '33%'}),
+        html.H1('Step 2: Adjust Chart & Select Splits'),
+        html.P('Note: Sum Curve & Area charts may be slow due to computation.'),
+
+        html.Table([
+
+            html.Tr([
+                html.Td(html.Button('Parse files and refresh chart & options',
+                                    id='parse-data-and-refresh-chart')),
+                # html.P('Chart type'),
+                html.Td(dcc.Dropdown(
+                    id='type',
+                    options=[
+                        {'label': 'Models', 'value': 'curve'},
+                        {'label': 'Sum Curve', 'value': 'sumcurve'},
+                        {'label': 'Peak Histogram', 'value': 'count'},
+                        {'label': 'Area Histogram', 'value': 'area'},
+                    ],
+                    value='curve',
+                    placeholder='Select chart type',
+                    style={'width': '250px'}
+                )),
+                html.Td(dcc.Dropdown(
+                    id='scale',
+                    options=[
+                        {'label': 'Linear Scale', 'value': 'linear'},
+                        {'label': 'Log Scale', 'value': 'log'},
+                    ],
+                    value='linear',
+                    placeholder='Select scale',
+                    style={'width': '250px'}
+                )),
+                html.Td(dcc.Dropdown(
+                    id='include-negative',
+                    options=[
+                        {'label': 'Include negative models', 'value': True},
+                        {'label': 'Exclude negative models', 'value': False},
+                    ],
+                    value=False,
+                    style={'width': '250px'},
+                    placeholder='Include negative models'
+                ))
+            ]),  # end row 1
+
+            html.Tr([
+                html.Td(dcc.Dropdown(id='files', placeholder='Select a file')),
+                html.Td(['Bin width: ', dcc.Input(
+                    id='bin-width',
+                    value=100,
+                    placeholder='Enter bin width (default: 100)',
+                    type='number',
+                    min=10, max=100, step=10
+                )])
+            ])  # end row 2
+
+        ]),  # end table
 
         dcc.Graph(id='plot', figure=countplot(DATA=read_input())),
 
-    ]),
 
-    html.H1('Step 3'),
-    html.P('Enter split points'),
+    ]),  # end loading
+
+    # html.H1('Step 3: Select Splits'),
     html.P('Select a partition', id='selection'),
     dcc.Input(
         id='split-point',
@@ -98,9 +118,11 @@ layout = html.Div([
     html.Button('Remove Last Split', id='remove-split',
                 n_clicks_timestamp=0),
 
-    html.H1('Step 4'),
-    html.Button('Generate Output File', id='submit'),
-    html.A('Download CSV', href='/dash/download', id='dl_link'),
+    html.H1('Step 3: Generate File', style={'margin-top': '10px'}),
+    dcc.Loading([
+        html.Button('Generate Output File', id='submit', style={'margin-bottom': '25px'}),
+        html.A('Download CSV', href='/dash/download', id='dl_link')
+    ], style={'height':'500px'}, fullscreen=True),
 
     html.Div(id='state', style={'display': 'none'}),
     html.Div(id='areas-state', style={'display': 'none'}),
