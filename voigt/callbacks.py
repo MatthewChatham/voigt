@@ -1,5 +1,8 @@
+from .server import app
+from .extract import read_input
 
 from dash.dependencies import Input, Output, State
+import dash_html_components as html
 from flask import send_file
 
 from os.path import join
@@ -9,11 +12,10 @@ import base64
 from calendar import timegm
 from time import gmtime
 
-from voigt.drawing import countplot, areaplot, curveplot, construct_shapes
+from voigt.drawing import countplot, areaplot, curveplot, sumcurveplot
 from voigt.aggregate import generate_output_file
+from.extract import parse_file
 
-from .server import app
-from .extract import read_input
 
 if os.environ.get('STACK'):
     env = 'Heroku'
@@ -22,7 +24,17 @@ else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
 
-ALLOWED_EXTENSIONS = set(['txt'])
+
+@app.callback(
+    Output('files', 'options'),
+    [Input('parse-data-and-refresh-chart', 'n_clicks')]
+)
+def set_file_options(n_clicks):
+
+    models = read_input()
+    filenames = models.filename.unique().tolist()
+
+    return [{'label': fn, 'value': fn} for fn in filenames]
 
 
 @app.callback(Output('output-data-upload', 'children'),
@@ -30,20 +42,55 @@ ALLOWED_EXTENSIONS = set(['txt'])
               [State('upload-data', 'filename'),
                State('upload-data', 'last_modified')])
 def upload(list_of_contents, list_of_names, list_of_dates):
-    if list_of_contents is not None:
+    """
+    Takes uploaded .txt files as input and writes them to disk.
 
-        # Delete previous files
+    Provides feedback to the user.
+
+    """
+
+    def _clean():
         for existing_file in os.listdir(join(BASE_DIR, 'input')):
             if existing_file != '.hold':
                 os.remove(join(BASE_DIR, 'input', existing_file))
 
-        for i, c in enumerate(list_of_contents):
-            s = c.split(',')[1]
-            s = base64.b64decode(s).decode()
-            with open(join(BASE_DIR, 'input', list_of_names[i]), 'w') as f:
-                f.write(s)
+    try:
+        if list_of_contents:
 
-        return str(list_of_names)
+            _clean()
+
+            written = list()
+
+            # Write uploaded files to BASE_DIR/input
+            for i, c in enumerate(list_of_contents):
+
+                if not list_of_names[i].endswith('.txt'):
+                    raise Exception(f'File {list_of_names[i]} must be .txt')
+
+                s = c.split(',')[1]
+
+                try:
+                    s = base64.b64decode(s).decode()
+                except UnicodeDecodeError:
+                    raise Exception(f'Error uploading file {list_of_names[i]}. Please check file format and try again.')
+
+                with open(join(BASE_DIR, 'input', list_of_names[i]), 'w') as f:
+                    f.write(s)
+
+                try:
+                    parse_file(join(BASE_DIR, 'input', list_of_names[i]))
+                except Exception:
+                    raise Exception(f'Cannot parse file {list_of_names[i]}')
+
+                written.append(list_of_names[i])
+
+            res = [html.Li(x) for x in written]
+            res.insert(0, html.P(f'Success! {len(written)} .txt files were uploaded.'))
+            return res
+
+    except Exception as e:
+        _clean()
+        return f'An error occurred while uploading files: {e}'
 
 
 @app.callback(
@@ -69,7 +116,7 @@ def update_selection_prompt(state):
     ]
 )
 def update_areas_state(bin_width, bin_width_state, areas_state, chart_type, figure):
-    if bin_width == 100 and chart_type == 'count' and areas_state is None:
+    if bin_width == 100 and chart_type == 'curve' and areas_state is None:
         return '{"areas": {}}', 100
 
     areas_state = json.loads(areas_state)
@@ -99,7 +146,7 @@ def update_areas_state(bin_width, bin_width_state, areas_state, chart_type, figu
 def update_state(add, remove, split_point, state, figure, bin_width, chart_type):
 
     # Initial load
-    if add == 0 and remove == 0 and chart_type == 'count':
+    if add == 0 and remove == 0 and chart_type == 'curve':
         return '{"splits":[], "add":0, "remove":0}'
 
     state = json.loads(state)
@@ -132,19 +179,26 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
         Input('scale', 'value'),
         Input('type', 'value'),
         # Input('split-point', 'value'),
-        Input('parse-data-and-refresh-chart', 'n_clicks')
+        Input('parse-data-and-refresh-chart', 'n_clicks'),
+        Input('include-negative', 'value'),
+        Input('files', 'value')
     ],
     [
         State('state', 'children'),
-        State('areas-state', 'children')
+        State('areas-state', 'children'),
     ]
 )
-def update_plot(bin_width, scale, chart_type, refresh_clicks, state, areas_state):
-    funcs = {'count': countplot, 'area': areaplot, 'curve': curveplot}
+def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, filename, state, areas_state):
+    funcs = {'count': countplot, 'area': areaplot,
+             'curve': curveplot, 'sumcurve': sumcurveplot}
+
+    models = read_input()
+    if filename:
+        models = models.loc[models.filename == filename]
 
     kwargs = dict(
         bin_width=bin_width,
-        DATA=read_input(),
+        DATA=models,
         scale=scale,
         shapes=[],  # construct_shapes(split_point=split_point),
     )
@@ -158,6 +212,12 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, state, areas_state
             print('FOUND CACHED AREA')
             areas = areas_state['areas'][str(bin_width)]
             kwargs['areas'] = areas
+
+    if include_negative:
+        print('DISPLAYING NEGATIVE MODELS')
+        kwargs['exclude_negative'] = False
+    else:
+        print('NOT displaying negative models')
 
     return funcs[chart_type](**kwargs)
 
