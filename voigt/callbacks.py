@@ -1,11 +1,10 @@
-from .server import app
-from .extract import read_input
+
 
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
 from flask import send_file
 
-from os.path import join
+from os.path import join, isfile
 import os
 import json
 import base64
@@ -14,7 +13,12 @@ from time import gmtime
 
 from voigt.drawing import countplot, areaplot, curveplot, sumcurveplot
 from voigt.aggregate import generate_output_file
-from.extract import parse_file
+from .extract import parse_file
+from .worker import conn
+from .server import app
+from .extract import read_input
+
+from rq import Queue
 
 
 if os.environ.get('STACK'):
@@ -23,6 +27,30 @@ if os.environ.get('STACK'):
 else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
+
+# Redis queue for asynchronous processing
+q = Queue(connection=conn)
+
+
+@app.callback(
+    Output('result-status', 'children'),
+    [Input('interval', 'n_intervals')]
+)
+def poll_and_update_on_processing(n_intervals):
+    if n_intervals == 0:
+        return None
+
+    def _check_for_output(n_intervals):
+        # return os.exists(join(BASE_DIR, 'output', 'output.csv'))
+        if isfile(join(BASE_DIR, 'output', 'output.csv')):
+            return True
+        else:
+            return False
+
+    if _check_for_output(n_intervals):
+        return 'The output file is ready!'
+    else:
+        return 'The output file isn\'t ready yet :('
 
 
 @app.callback(
@@ -223,17 +251,17 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
 
 
 @app.callback(
-    Output('dl_link', 'style'),
+    Output('dl_link', 'content'),
     [Input('submit', 'n_clicks')],
     [State('state', 'children')]
 )
 def submit(n_clicks, state):
     if n_clicks is None:
-        return {'display': 'none'}
+        return None
     if n_clicks is not None:
         splits = json.loads(state)['splits']
-        generate_output_file(splits, read_input())
-        return {}
+        result = q.enqueue(generate_output_file, splits, read_input())
+        return 'Please wait while data is processed...'
 
 
 @app.server.route('/dash/download')

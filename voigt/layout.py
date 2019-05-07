@@ -114,6 +114,12 @@ layout = html.Div([
                 n_clicks_timestamp=0),
 
     html.H1('Step 3: Generate File', style={'margin-top': '10px'}),
+    dcc.Interval(
+        id='interval',
+        interval=1000,  # milliseconds
+        n_intervals=0,
+    ),
+    html.Div(id='result-status'),
     dcc.Loading([
         html.Button('Generate Output File', id='submit',
                     style={'margin-bottom': '25px'}),
