@@ -1,2 +1,2 @@
 web: gunicorn run:server
-worker: python worker.py
+worker: python voigt/worker.py
