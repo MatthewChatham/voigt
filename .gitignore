@@ -11,3 +11,5 @@ dist
 test_input/
 tmp.txt
 *.egg-info/
+*.png
+*.txt

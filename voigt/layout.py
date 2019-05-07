@@ -11,10 +11,6 @@ INSTRUCTIONS = '''
 
 layout = html.Div([
 
-    # html.Div([
-    #     html.H6('Instructions'),
-    #     html.P(INSTRUCTIONS)
-    # ], id='instructions', style={'width': '33%', 'float':'left'}),
 
     # Step 1: Upload TGA files
     html.Div([
@@ -35,7 +31,6 @@ layout = html.Div([
                 'textAlign': 'center',
                 'margin': '10px',
             },
-            # Allow multiple files to be uploaded
             multiple=True
         ),
         html.Div(id='output-data-upload', style={'padding': '10px'}),
@@ -120,9 +115,10 @@ layout = html.Div([
 
     html.H1('Step 3: Generate File', style={'margin-top': '10px'}),
     dcc.Loading([
-        html.Button('Generate Output File', id='submit', style={'margin-bottom': '25px'}),
+        html.Button('Generate Output File', id='submit',
+                    style={'margin-bottom': '25px'}),
         html.A('Download CSV', href='/dash/download', id='dl_link')
-    ], style={'height':'500px'}, fullscreen=True),
+    ], style={'height': '500px'}, fullscreen=False),
 
     html.Div(id='state', style={'display': 'none'}),
     html.Div(id='areas-state', style={'display': 'none'}),
