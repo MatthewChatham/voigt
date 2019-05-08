@@ -1,5 +1,5 @@
 import os
-from os.path import join
+from os.path import join, isdir
 import pandas as pd
 import numpy as np
 from scipy.special import wofz
@@ -207,14 +207,14 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist()
     y = [F(_) for _ in x]
 
-    # save an image of the peak
-    import matplotlib
-    matplotlib.use('PS')
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    ax.plot(x, y)
-    fig.savefig(join(BASE_DIR, 'output', f'output_{session_id}', 'images', f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png'))
-    plt.close()
+    # save an image of the peak -- TODO with S3
+    # import matplotlib
+    # matplotlib.use('PS')
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots()
+    # ax.plot(x, y)
+    # fig.savefig(join(BASE_DIR, 'output', f'output_{session_id}', 'images', f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png'))
+    # plt.close()
 
     halfmax = max(y) / 2
     diffs = [(_ - halfmax) for _ in y]
@@ -229,7 +229,8 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     #     print(y)
 
     if not(diffs[0] < 0 and diffs[-1] < 0) or not _is_monotonic_before_and_after_peak(y):
-        # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS NOT proper shape')
+        # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS NOT proper
+        # shape')
         return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', np.nan
     # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS proper shape')
 
@@ -256,8 +257,9 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     # print()
 
     try:
-        lowerbound = sum(first_cross) / 2 # x[diffs.index(0)]
-        upperbound = sum(last_cross) / 2 # x[len(diffs) - diffs[::-1].index(0) - 1]
+        lowerbound = sum(first_cross) / 2  # x[diffs.index(0)]
+        # x[len(diffs) - diffs[::-1].index(0) - 1]
+        upperbound = sum(last_cross) / 2
         if abs((upperbound - lowerbound) - (bounds[1] - bounds[0])) < 1e-14:
             raise ValueError('FWHM is width of bounds')
         res = upperbound - lowerbound
@@ -320,7 +322,8 @@ def generate_output_file(splits, models, session_id):
 
         print('computing...')
         for f in models.filename.unique():
-            d = aggregate_single_file(partitions, models.loc[models.filename == f], session_id)
+            d = aggregate_single_file(partitions, models.loc[
+                                      models.filename == f], session_id)
             for col in d.keys():
                 res_df.loc[f, col] = d[col]
 
@@ -328,7 +331,8 @@ def generate_output_file(splits, models, session_id):
     # print('result saved to output/output.csv...')
 
     print('sending to db.....')
-    dbconn = create_engine(DATABASE_URL) if os.environ.get('STACK') else sqlite3.connect('output.db')
+    dbconn = create_engine(DATABASE_URL) if os.environ.get(
+        'STACK') else sqlite3.connect('output.db')
     res_df.to_sql(f'output_{session_id}', if_exists='fail', con=dbconn)
     print(f'result sent to output_{session_id}')
 

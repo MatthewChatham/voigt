@@ -78,7 +78,7 @@ def poll_and_update_on_processing(n_intervals, session_id):
         outzip = join(BASE_DIR, 'output', f'output_{session_id}', 'images.zip')
         indir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
         shutil.make_archive(outzip, 'zip', indir)
-        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}
+        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {'display':'none'}
     else:
         return '#', {'display':'none'}, '#', {'display':'none'}
 
