@@ -315,7 +315,7 @@ def generate_output_file(splits, models, session_id):
                   for i, x in enumerate(partitions) if x != 1000]
     res_df = pd.DataFrame(list(), index=models.filename.unique())
 
-    if os.environ.get('STACK') and False: # deploydev only
+    if os.environ.get('STACK'):
 
         for f in models.filename.unique():
             d = aggregate_single_file(partitions, models.loc[models.filename == f])
