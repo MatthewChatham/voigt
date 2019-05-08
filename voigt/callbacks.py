@@ -1,5 +1,3 @@
-
-
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
 from flask import send_file
@@ -10,6 +8,10 @@ import json
 import base64
 from calendar import timegm
 from time import gmtime
+import psycopg2
+import pandas as pd
+import flask
+from io import StringIO, BytesIO
 
 from voigt.drawing import countplot, areaplot, curveplot, sumcurveplot
 from voigt.aggregate import generate_output_file
@@ -18,39 +20,58 @@ from .worker import conn
 from .server import app
 from .extract import read_input
 
+from urllib.parse import quote
+
+import sqlite3
+
+
 from rq import Queue
 
 
 if os.environ.get('STACK'):
     env = 'Heroku'
     BASE_DIR = '/app'
+    DATABASE_URL = os.environ['DATABASE_URL']
 else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
+
 
 # Redis queue for asynchronous processing
 q = Queue(connection=conn)
 
 
 @app.callback(
-    Output('result-status', 'children'),
-    [Input('interval', 'n_intervals')]
+    Output('dl_link', 'href'),
+    [Input('interval', 'n_intervals')], [State('session-id', 'children')]
 )
-def poll_and_update_on_processing(n_intervals):
+def poll_and_update_on_processing(n_intervals, session_id):
     if n_intervals == 0:
         return None
 
+    dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get(
+        'STACK') else sqlite3.connect('output.db')
+    query = f'select distinct table_name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
+
     def _check_for_output(n_intervals):
-        # return os.exists(join(BASE_DIR, 'output', 'output.csv'))
-        if isfile(join(BASE_DIR, 'output', 'output.csv')):
+
+        df = pd.read_sql(query, con=dbconn, columns=['name'])
+        # print('NAMES', df)
+
+        if f'output_{session_id}' in df.name.values:
+            # print('True!')
             return True
         else:
+            # print('False')
             return False
 
     if _check_for_output(n_intervals):
-        return 'The output file is ready!'
+        dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get('STACK') else sqlite3.connect('output.db')
+        df = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
+        csv_string = df.to_csv()
+        return "data:text/csv;charset=utf-8," + quote(csv_string)
     else:
-        return 'The output file isn\'t ready yet :('
+        return '#'
 
 
 @app.callback(
@@ -60,6 +81,9 @@ def poll_and_update_on_processing(n_intervals):
 def set_file_options(n_clicks):
 
     models = read_input()
+    if len(models) == 0:
+        return None
+
     filenames = models.filename.unique().tolist()
 
     return [{'label': fn, 'value': fn} for fn in filenames]
@@ -242,10 +266,11 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
             kwargs['areas'] = areas
 
     if include_negative:
-        print('DISPLAYING NEGATIVE MODELS')
+        # print('DISPLAYING NEGATIVE MODELS')
         kwargs['exclude_negative'] = False
     else:
-        print('NOT displaying negative models')
+        # print('NOT displaying negative models')
+        pass
 
     return funcs[chart_type](**kwargs)
 
@@ -253,20 +278,42 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
 @app.callback(
     Output('dl_link', 'content'),
     [Input('submit', 'n_clicks')],
-    [State('state', 'children')]
+    [
+        State('state', 'children'),
+        State('session-id', 'children')
+    ]
 )
-def submit(n_clicks, state):
+def submit(n_clicks, state, session_id):
     if n_clicks is None:
         return None
     if n_clicks is not None:
         splits = json.loads(state)['splits']
-        result = q.enqueue(generate_output_file, splits, read_input())
-        return 'Please wait while data is processed...'
+        q.enqueue(generate_output_file, splits, read_input(), session_id)
+        return None
 
 
-@app.server.route('/dash/download')
-def download_csv():
-    return send_file(join(BASE_DIR, 'output', 'output.csv'),
-                     mimetype='text/csv',
-                     attachment_filename=f'output_{int(timegm(gmtime()))}.csv',
-                     as_attachment=True)
+# @app.server.route('/dash/download')
+# def download_csv():
+#     session_id = flask.request.args.get('session_id')
+#     dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get(
+#         'STACK') else sqlite3.connect('output.db')
+#     res = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
+#     # strIO = StringIO()
+#     # strIO.write(res.to_csv(encoding='utf-8'))
+#     # strIO.seek(0)
+#     print(len(res))
+#     return send_file(BytesIO(res.to_csv()),
+#                      mimetype='text/csv',
+#                      attachment_filename=f'output_{session_id}.csv',
+#                      as_attachment=True
+#                      )
+
+
+# @app.callback(
+#     dash.dependencies.Output('download-link', 'href'),
+#     [dash.dependencies.Input('field-dropdown', 'value')])
+# def update_download_link(filter_value):
+#     dff = filter_data(filter_value)
+#     csv_string = dff.to_csv(index=False, encoding='utf-8')
+#     csv_string = "data:text/csv;charset=utf-8," + urllib.quote(csv_string)
+#     return csv_string

@@ -4,12 +4,16 @@ import pandas as pd
 import numpy as np
 from scipy.special import wofz
 from scipy.integrate import quad
+import psycopg2
 
 from .extract import read_input
+
+import sqlite3
 
 if os.environ.get('STACK'):
     env = 'Heroku'
     BASE_DIR = '/app'
+    DATABASE_URL = os.environ['DATABASE_URL']
 else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
@@ -182,7 +186,7 @@ def fwhm(bounds, models, pos_neg='pos'):
     if len(models) == 0:
         return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', np.nan
 
-    print(models.filename.unique())
+    # print(models.filename.unique())
     filename = models.filename.unique().tolist()[0]
 
     def F(x):
@@ -219,14 +223,14 @@ def fwhm(bounds, models, pos_neg='pos'):
     # Make sure the curve starts and ends below its halfmax,
     # and is monotonically increasing (decreasing) before (after) peak
 
-    if filename == 'fit_2018-09-07_S18.txt' and bounds[0] == 480 and bounds[1] == 520:
-        print(x)
-        print(y)
+    # if filename == 'fit_2018-09-07_S18.txt' and bounds[0] == 480 and bounds[1] == 520:
+    #     print(x)
+    #     print(y)
 
     if not(diffs[0] < 0 and diffs[-1] < 0) or not _is_monotonic_before_and_after_peak(y):
-        print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS NOT proper shape')
+        # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS NOT proper shape')
         return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', np.nan
-    print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS proper shape')
+    # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS proper shape')
 
     for i, d in enumerate(diffs):
         if i == 0:
@@ -239,16 +243,16 @@ def fwhm(bounds, models, pos_neg='pos'):
             if d < 0 and diffs[i - 1] > 0:
                 last_cross = (x[i - 1], x[i])
 
-    print()
-    print()
-    print(filename, ' ----- ', pos_neg, ' ----- ', bounds)
-    print(halfmax, first_cross, last_cross)
-    print(np.argmax(y))
-    print(f'starts and ends below halfmax: {diffs[0] < 0 and diffs[-1] < 0}')
-    print(f'is monotonic before and after peak: {_is_monotonic_before_and_after_peak(y)}')
-    print(y)
-    print()
-    print()
+    # print()
+    # print()
+    # print(filename, ' ----- ', pos_neg, ' ----- ', bounds)
+    # print(halfmax, first_cross, last_cross)
+    # print(np.argmax(y))
+    # print(f'starts and ends below halfmax: {diffs[0] < 0 and diffs[-1] < 0}')
+    # print(f'is monotonic before and after peak: {_is_monotonic_before_and_after_peak(y)}')
+    # print(y)
+    # print()
+    # print()
 
     try:
         lowerbound = sum(first_cross) / 2 # x[diffs.index(0)]
@@ -257,7 +261,7 @@ def fwhm(bounds, models, pos_neg='pos'):
             raise ValueError('FWHM is width of bounds')
         res = upperbound - lowerbound
     except ValueError:
-        print('Failed to find FWHM')
+        # print('Failed to find FWHM')
         res = np.nan
         # raise RuntimeError(f'Failed to find FWHM within bounds {bounds}.')
 
@@ -297,7 +301,7 @@ def aggregate_single_file(partitions, models):
     return res_dict
 
 
-def generate_output_file(splits, models):
+def generate_output_file(splits, models, session_id):
     """
     Given an iterable of `splits` and a df of `models`,
     computes model aggregates for each region of the partition
@@ -310,13 +314,20 @@ def generate_output_file(splits, models):
                   for i, x in enumerate(partitions) if x != 1000]
     res_df = pd.DataFrame(list(), index=models.filename.unique())
 
-    for f in models.filename.unique():
-        d = aggregate_single_file(partitions, models.loc[models.filename == f])
-        for col in d.keys():
-            res_df.loc[f, col] = d[col]
+    if os.environ.get('STACK'):
 
-    res_df.to_csv(join(BASE_DIR, 'output', 'output.csv'))
-    print('result saved to output/output.csv...')
+        for f in models.filename.unique():
+            d = aggregate_single_file(partitions, models.loc[models.filename == f])
+            for col in d.keys():
+                res_df.loc[f, col] = d[col]
+
+    # res_df.to_csv(join(BASE_DIR, 'output', 'output.csv'))
+    # print('result saved to output/output.csv...')
+
+    print('sending to db.....')
+    dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get('STACK') else sqlite3.connect('output.db')
+    res_df.to_sql(f'output_{session_id}', if_exists='fail', con=dbconn)
+    print(f'result sent to output_{session_id}')
 
     return res_df
 

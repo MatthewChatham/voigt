@@ -10,3 +10,5 @@ plotly
 matplotlib
 seaborn
 rq
+psycopg2-binary
+sqlite3

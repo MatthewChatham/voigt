@@ -13,3 +13,4 @@ tmp.txt
 *.egg-info/
 *.png
 *.txt
+*.db
