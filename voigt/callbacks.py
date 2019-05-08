@@ -11,15 +11,20 @@ import flask
 import shutil
 from urllib.parse import quote
 import sqlite3
+from sqlalchemy import create_engine
 
 from voigt.drawing import countplot, areaplot, curveplot, sumcurveplot, emptyplot
 from voigt.aggregate import generate_output_file
 from .extract import parse_file
 from .worker import conn
-from .server import app, dbconn
+from .server import app
 from .extract import read_input
 
 from rq import Queue
+
+# from flask_sqlalchemy import SQLAlchemy
+
+
 
 
 if os.environ.get('STACK'):
@@ -44,8 +49,7 @@ def poll_and_update_on_processing(n_intervals, session_id):
     if n_intervals == 0:
         return '#', {'display':'none'}, '#', {'display':'none'}
 
-    if not os.environ.get('STACK'):
-        dbconn = sqlite3.connect('output.db')
+    dbconn = create_engine(DATABASE_URL).connect() if os.environ.get('STACK') else sqlite3.connect('output.db')
 
     query = f'select distinct table_name as name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
 
@@ -69,10 +73,10 @@ def poll_and_update_on_processing(n_intervals, session_id):
         outzip = join(BASE_DIR, 'output', f'output_{session_id}', 'images.zip')
         indir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
         shutil.make_archive(outzip, 'zip', indir)
-        # dbconn.close()
+        dbconn.close()
         return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {'display':'none'}
     else:
-        # dbconn.close()
+        dbconn.close()
         return '#', {'display':'none'}, '#', {'display':'none'}
 
 

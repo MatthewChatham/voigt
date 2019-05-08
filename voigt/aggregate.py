@@ -6,7 +6,7 @@ from scipy.special import wofz
 from scipy.integrate import quad
 import sqlite3
 
-from.server import dbconn
+# from.server import dbconn
 
 if os.environ.get('STACK'):
     env = 'Heroku'
@@ -328,13 +328,10 @@ def generate_output_file(splits, models, session_id):
     # print('result saved to output/output.csv...')
 
     print('sending to db.....')
-    # dbconn = create_engine(DATABASE_URL) if os.environ.get(
-    #     'STACK') else sqlite3.connect('output.db')
-    if not os.environ.get('STACK'):
-        dbconn = sqlite3.connect('output.db')
+    dbconn = create_engine(DATABASE_URL).connect() if os.environ.get('STACK') else sqlite3.connect('output.db')
     res_df.to_sql(f'output_{session_id}', if_exists='fail', con=dbconn)
     print(f'result sent to output_{session_id}')
-    # dbconn.close()
+    dbconn.close()
 
     return res_df
 
