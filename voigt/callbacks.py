@@ -12,6 +12,7 @@ import psycopg2
 import pandas as pd
 import flask
 from io import StringIO, BytesIO
+from sqlalchemy import create_engine
 
 from voigt.drawing import countplot, areaplot, curveplot, sumcurveplot
 from voigt.aggregate import generate_output_file
