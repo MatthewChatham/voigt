@@ -51,11 +51,12 @@ def poll_and_update_on_processing(n_intervals, session_id):
 
     dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get(
         'STACK') else sqlite3.connect('output.db')
-    query = f'select distinct table_name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
+    query = f'select distinct table_name as name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
 
     def _check_for_output(n_intervals):
 
         df = pd.read_sql(query, con=dbconn, columns=['name'])
+        print(df.columns)
         # print('NAMES', df)
 
         if f'output_{session_id}' in df.name.values:
