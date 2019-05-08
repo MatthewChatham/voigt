@@ -193,7 +193,7 @@ def update_selection_prompt(state):
     ]
 )
 def update_areas_state(bin_width, bin_width_state, areas_state, chart_type, figure):
-    if bin_width == 100 and chart_type == 'curve' and areas_state is None:
+    if bin_width == 100 and chart_type == 'sumcurve' and areas_state is None:
         return '{"areas": {}}', 100
 
     areas_state = json.loads(areas_state)
@@ -223,7 +223,7 @@ def update_areas_state(bin_width, bin_width_state, areas_state, chart_type, figu
 def update_state(add, remove, split_point, state, figure, bin_width, chart_type):
 
     # Initial load
-    if add == 0 and remove == 0 and chart_type == 'curve':
+    if add == 0 and remove == 0 and chart_type == 'sumcurve':
         return '{"splits":[], "add":0, "remove":0}'
 
     state = json.loads(state)

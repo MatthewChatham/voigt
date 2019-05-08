@@ -157,7 +157,7 @@ def sumcurveplot(bin_width=50, shapes=[],
     models = DATA
 
     def F(x):
-        vals = list()
+        vals = np.array([0]*len(x), ndmin=2)
 
         for idx, model in models.iterrows():
             prefix = model.variable[:model.variable.index('_')]
@@ -165,10 +165,10 @@ def sumcurveplot(bin_width=50, shapes=[],
             gamma = sigma
             amplitude = model.loc[prefix + '_amplitude']
 
-            vals.append(
-                Voigt(x, center=model.value,
-                      amplitude=amplitude, sigma=sigma, gamma=gamma))
-        return sum(vals)
+            res =  np.array(Voigt(x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
+            # print(vals, res)
+            vals = np.concatenate([vals, res], axis=0)
+        return vals.sum(axis=0)
 
     X = np.linspace(30, 1000, 1000 - 30 + 1)
 
@@ -176,7 +176,7 @@ def sumcurveplot(bin_width=50, shapes=[],
 
     trace = go.Scatter(
         x=X,
-        y=[F(x) for x in X],
+        y=F(X),
         mode='lines',
     )
 

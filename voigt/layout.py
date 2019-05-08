@@ -70,7 +70,7 @@ def _layout():
                                 {'label': 'Peak Histogram', 'value': 'count'},
                                 {'label': 'Area Histogram', 'value': 'area'},
                             ],
-                            value='curve',
+                            value='sumcurve',
                             placeholder='Select chart type',
                             style={'width': '250px'}
                         )),
