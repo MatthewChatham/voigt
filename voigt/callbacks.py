@@ -29,6 +29,7 @@ from rq import Queue
 
 
 if os.environ.get('STACK'):
+    print('RUNNING ON HEROKU')
     env = 'Heroku'
     BASE_DIR = '/app'
     DATABASE_URL = os.environ['DATABASE_URL']
@@ -49,9 +50,8 @@ def poll_and_update_on_processing(n_intervals, session_id):
     if n_intervals == 0:
         return None
 
-    dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get(
-        'STACK') else sqlite3.connect('output.db')
-    query = f'select distinct table_name as name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
+    dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') #if os.environ.get('STACK') else sqlite3.connect('output.db') 
+    query = f'select distinct table_name as name from information_schema.tables' #if os.environ.get('STACK') else 'select distinct name from sqlite_master'
 
     def _check_for_output(n_intervals):
 
@@ -67,7 +67,7 @@ def poll_and_update_on_processing(n_intervals, session_id):
             return False
 
     if _check_for_output(n_intervals):
-        dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get('STACK') else sqlite3.connect('output.db')
+        dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') #if os.environ.get('STACK') else sqlite3.connect('output.db')
         df = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
         csv_string = df.to_csv()
         return "data:text/csv;charset=utf-8," + quote(csv_string)

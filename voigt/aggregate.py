@@ -314,18 +314,18 @@ def generate_output_file(splits, models, session_id):
                   for i, x in enumerate(partitions) if x != 1000]
     res_df = pd.DataFrame(list(), index=models.filename.unique())
 
-    if os.environ.get('STACK'):
+    # if os.environ.get('STACK'):
 
-        for f in models.filename.unique():
-            d = aggregate_single_file(partitions, models.loc[models.filename == f])
-            for col in d.keys():
-                res_df.loc[f, col] = d[col]
+    for f in models.filename.unique():
+        d = aggregate_single_file(partitions, models.loc[models.filename == f])
+        for col in d.keys():
+            res_df.loc[f, col] = d[col]
 
     # res_df.to_csv(join(BASE_DIR, 'output', 'output.csv'))
     # print('result saved to output/output.csv...')
 
     print('sending to db.....')
-    dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get('STACK') else sqlite3.connect('output.db')
+    dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') #if os.environ.get('STACK') else sqlite3.connect('output.db')
     res_df.to_sql(f'output_{session_id}', if_exists='fail', con=dbconn)
     print(f'result sent to output_{session_id}')
 
