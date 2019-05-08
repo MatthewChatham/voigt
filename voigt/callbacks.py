@@ -70,16 +70,16 @@ def poll_and_update_on_processing(n_intervals, session_id):
             return False
 
     if _check_for_output(n_intervals):
-        dbconn = create_engine(DATABASE_URL) if os.environ.get(
-            'STACK') else sqlite3.connect('output.db')
         df = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
         df.rename({'index':'filename'}, axis=1, inplace=True)
         csv_string = df.to_csv(index=False)
         outzip = join(BASE_DIR, 'output', f'output_{session_id}', 'images.zip')
         indir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
         shutil.make_archive(outzip, 'zip', indir)
+        dbconn.close()
         return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {'display':'none'}
     else:
+        dbconn.close()
         return '#', {'display':'none'}, '#', {'display':'none'}
 
 

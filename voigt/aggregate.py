@@ -335,6 +335,7 @@ def generate_output_file(splits, models, session_id):
         'STACK') else sqlite3.connect('output.db')
     res_df.to_sql(f'output_{session_id}', if_exists='fail', con=dbconn)
     print(f'result sent to output_{session_id}')
+    dbconn.close()
 
     return res_df
 
