@@ -49,7 +49,7 @@ def poll_and_update_on_processing(n_intervals, session_id):
 
     query = f'select distinct table_name as name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
 
-    def _check_for_output(n_intervals):
+    def _check_for_output(n_intervals, dbconn):
 
         df = pd.read_sql(query, con=dbconn, columns=['name'])
         # print(df.columns)
@@ -62,7 +62,7 @@ def poll_and_update_on_processing(n_intervals, session_id):
             # print('False')
             return False
 
-    if _check_for_output(n_intervals):
+    if _check_for_output(n_intervals, dbconn):
         df = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
         df.rename({'index':'filename'}, axis=1, inplace=True)
         csv_string = df.to_csv(index=False)
