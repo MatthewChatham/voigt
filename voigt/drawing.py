@@ -49,7 +49,7 @@ def countplot(bin_width=50, shapes=[],
                  ],
         'layout': go.Layout({
             'shapes': shapes,
-            'dragmode': 'select',
+            # 'dragmode': 'select',
             'yaxis': dict(
                 type=scale,
                 autorange=True
@@ -87,7 +87,7 @@ def areaplot(bin_width=50, shapes=[],
         ],
         'layout': go.Layout({
             'shapes': shapes,
-            'dragmode': 'select',
+            # 'dragmode': 'select',
             'yaxis': dict(
                 type=scale,
                 autorange=True
@@ -135,7 +135,7 @@ def curveplot(bin_width=50, shapes=[],
         'data': data,
         'layout': go.Layout({
             'shapes': shapes,
-            'dragmode': 'select',
+            # 'dragmode': 'select',
             'yaxis': dict(
                 type=scale,
                 autorange=True
@@ -186,9 +186,28 @@ def sumcurveplot(bin_width=50, shapes=[],
         'data': data,
         'layout': go.Layout({
             'shapes': shapes,
-            'dragmode': 'select',
+            # 'dragmode': 'select',
             'yaxis': dict(
                 type=scale,
+                autorange=True
+                # range=range_
+
+            )
+        })
+    }
+
+    return figure
+
+
+def emptyplot():
+    data = list()
+
+    figure = {
+        'data': data,
+        'layout': go.Layout({
+            # 'dragmode': 'select',
+            'yaxis': dict(
+                type='linear',
                 autorange=True
                 # range=range_
 

@@ -2,7 +2,7 @@ from dash.dependencies import Input, Output, State
 import dash_html_components as html
 from flask import send_file
 
-from os.path import join, isfile
+from os.path import join, isfile, isdir
 import os
 import json
 import base64
@@ -13,8 +13,9 @@ import pandas as pd
 import flask
 from io import StringIO, BytesIO
 from sqlalchemy import create_engine
+import shutil
 
-from voigt.drawing import countplot, areaplot, curveplot, sumcurveplot
+from voigt.drawing import countplot, areaplot, curveplot, sumcurveplot, emptyplot
 from voigt.aggregate import generate_output_file
 from .extract import parse_file
 from .worker import conn
@@ -44,20 +45,21 @@ q = Queue(connection=conn)
 
 
 @app.callback(
-    Output('dl_link', 'href'),
+    [Output('dl_link', 'href'), Output('dl_link', 'style'), Output('dl_link_images', 'href'), Output('dl_link_images', 'style')],
     [Input('interval', 'n_intervals')], [State('session-id', 'children')]
 )
 def poll_and_update_on_processing(n_intervals, session_id):
     if n_intervals == 0:
-        return None
+        return '#', {'display':'none'}, '#', {'display':'none'}
 
-    dbconn = create_engine(DATABASE_URL) if os.environ.get('STACK') else sqlite3.connect('output.db') 
+    dbconn = create_engine(DATABASE_URL) if os.environ.get(
+        'STACK') else sqlite3.connect('output.db')
     query = f'select distinct table_name as name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
 
     def _check_for_output(n_intervals):
 
         df = pd.read_sql(query, con=dbconn, columns=['name'])
-        print(df.columns)
+        # print(df.columns)
         # print('NAMES', df)
 
         if f'output_{session_id}' in df.name.values:
@@ -68,34 +70,44 @@ def poll_and_update_on_processing(n_intervals, session_id):
             return False
 
     if _check_for_output(n_intervals):
-        dbconn = create_engine(DATABASE_URL)
+        dbconn = create_engine(DATABASE_URL) if os.environ.get(
+            'STACK') else sqlite3.connect('output.db')
         df = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
-        csv_string = df.to_csv()
-        return "data:text/csv;charset=utf-8," + quote(csv_string)
+        df.rename({'index':'filename'}, axis=1, inplace=True)
+        csv_string = df.to_csv(index=False)
+        outzip = join(BASE_DIR, 'output', f'output_{session_id}', 'images.zip')
+        indir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
+        shutil.make_archive(outzip, 'zip', indir)
+        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}
     else:
-        return '#'
+        return '#', {'display':'none'}, '#', {'display':'none'}
 
 
 @app.callback(
     Output('files', 'options'),
-    [Input('parse-data-and-refresh-chart', 'n_clicks')]
+    [Input('parse-data-and-refresh-chart', 'n_clicks')
+           ], [State('session-id', 'children')]
 )
-def set_file_options(n_clicks):
+def set_file_options(n_clicks, session_id):
 
-    models = read_input()
+    models = read_input(session_id)
     if len(models) == 0:
-        return None
+        return []
 
     filenames = models.filename.unique().tolist()
 
-    return [{'label': fn, 'value': fn} for fn in filenames]
+    res = [{'label': fn, 'value': fn} for fn in filenames]
+    return res
 
 
 @app.callback(Output('output-data-upload', 'children'),
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
-               State('upload-data', 'last_modified')])
-def upload(list_of_contents, list_of_names, list_of_dates):
+               State('upload-data', 'last_modified'),
+               State('session-id', 'children')
+               ]
+)
+def upload(list_of_contents, list_of_names, list_of_dates, session_id):
     """
     Takes uploaded .txt files as input and writes them to disk.
 
@@ -103,10 +115,21 @@ def upload(list_of_contents, list_of_names, list_of_dates):
 
     """
 
+    if list_of_contents is None:
+        return ''
+
+    # make a subdirectory for this session if one doesn't already exist
+    input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+    if not isdir(input_dir):
+        try:
+            os.mkdir(input_dir)
+        except FileExistsError:
+            pass
+
     def _clean():
-        for existing_file in os.listdir(join(BASE_DIR, 'input')):
+        for existing_file in os.listdir(input_dir):
             if existing_file != '.hold':
-                os.remove(join(BASE_DIR, 'input', existing_file))
+                os.remove(join(input_dir, existing_file))
 
     try:
         if list_of_contents:
@@ -128,11 +151,11 @@ def upload(list_of_contents, list_of_names, list_of_dates):
                 except UnicodeDecodeError:
                     raise Exception(f'Error uploading file {list_of_names[i]}. Please check file format and try again.')
 
-                with open(join(BASE_DIR, 'input', list_of_names[i]), 'w') as f:
+                with open(join(input_dir, list_of_names[i]), 'w') as f:
                     f.write(s)
 
                 try:
-                    parse_file(join(BASE_DIR, 'input', list_of_names[i]))
+                    parse_file(join(input_dir, list_of_names[i]))
                 except Exception:
                     raise Exception(f'Cannot parse file {list_of_names[i]}')
 
@@ -144,7 +167,7 @@ def upload(list_of_contents, list_of_names, list_of_dates):
 
     except Exception as e:
         _clean()
-        return f'An error occurred while uploading files: {e}'
+        return f'An error occurred while uploading files: {e}', {'display': 'none'}
 
 
 @app.callback(
@@ -206,7 +229,7 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
     state = json.loads(state)
 
     if add > remove and add > state['add']:
-        if split_point not in state['splits']:
+        if split_point not in state['splits'] and split_point is not None:
             state['splits'].append(split_point)
     elif remove > add and remove > state['remove']:
         if len(state['splits']) > 0:
@@ -240,13 +263,17 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
     [
         State('state', 'children'),
         State('areas-state', 'children'),
+        State('session-id', 'children')
     ]
 )
-def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, filename, state, areas_state):
+def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, filename, state, areas_state, session_id):
     funcs = {'count': countplot, 'area': areaplot,
              'curve': curveplot, 'sumcurve': sumcurveplot}
 
-    models = read_input()
+    models = read_input(session_id)
+    if len(models) == 0:
+        print('returning emptyplot')
+        return emptyplot()
     if filename:
         models = models.loc[models.filename == filename]
 
@@ -278,7 +305,7 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
 
 
 @app.callback(
-    Output('dl_link', 'content'),
+    Output('feedback', 'children'),
     [Input('submit', 'n_clicks')],
     [
         State('state', 'children'),
@@ -287,28 +314,26 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
 )
 def submit(n_clicks, state, session_id):
     if n_clicks is None:
-        return None
+        return ''
     if n_clicks is not None:
-        splits = json.loads(state)['splits']
-        q.enqueue(generate_output_file, splits, read_input(), session_id)
-        return None
+        if len(q.job_ids) == 0:
+            splits = json.loads(state)['splits']
+            models = read_input(session_id)
+            if len(models) == 0:
+                return 'Please upload some TGA files first!'
+            q.enqueue(generate_output_file, splits, models, session_id)
+            return 'Please wait while your request is processed...'
+        return 'Please wait until the current job is finished!'
 
 
-# @app.server.route('/dash/download')
-# def download_csv():
-#     session_id = flask.request.args.get('session_id')
-#     dbconn = psycopg2.connect(DATABASE_URL, sslmode='require') if os.environ.get(
-#         'STACK') else sqlite3.connect('output.db')
-#     res = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
-#     # strIO = StringIO()
-#     # strIO.write(res.to_csv(encoding='utf-8'))
-#     # strIO.seek(0)
-#     print(len(res))
-#     return send_file(BytesIO(res.to_csv()),
-#                      mimetype='text/csv',
-#                      attachment_filename=f'output_{session_id}.csv',
-#                      as_attachment=True
-#                      )
+@app.server.route('/dash/download')
+def download_csv():
+    session_id = flask.request.args.get('session_id')
+    return send_file(join(BASE_DIR, 'output', f'output_{session_id}', 'images.zip'),
+                     mimetype='application/zip',
+                     attachment_filename=f'images_{session_id}.zip',
+                     as_attachment=True
+    )
 
 
 # @app.callback(

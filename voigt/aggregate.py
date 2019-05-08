@@ -22,12 +22,12 @@ else:
 # TODO: make sure partitions always includes (-np.inf, 0)
 # TODO: make sure to segregate "negative" models
 
-test_data = read_input()
-test_splits = [250, 650]
-test_splits.append(1000)
-test_splits.insert(0, 0)
-test_partitions = [(x, test_splits[i + 1])
-                   for i, x in enumerate(test_splits) if x != 1000]
+# test_data = read_input()
+# test_splits = [250, 650]
+# test_splits.append(1000)
+# test_splits.insert(0, 0)
+# test_partitions = [(x, test_splits[i + 1])
+#                    for i, x in enumerate(test_splits) if x != 1000]
 
 FILES = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
 
@@ -56,7 +56,7 @@ def compute_bin_areas(bins, DATA):
     return areas
 
 
-def composition(bounds, models, pos_neg='pos'):
+def composition(bounds, models, session_id, pos_neg='pos'):
     """
     Given a tuple of bounds and a df of models,
     compute the total area within the bounds.
@@ -102,7 +102,7 @@ def composition(bounds, models, pos_neg='pos'):
     return f'comp_{pos_neg}_{bounds[0]}_{bounds[1]}', bin_area
 
 
-def peak_position(bounds, models, pos_neg='pos'):
+def peak_position(bounds, models, session_id, pos_neg='pos'):
     """
     Given a tuple of partition bounds and a df of models,
     compute weighted average peak position (WAPP) within bounds.
@@ -138,7 +138,7 @@ def peak_position(bounds, models, pos_neg='pos'):
     return f'wapp_{pos_neg}_{bounds[0]}_{bounds[1]}', res
 
 
-def fwhm(bounds, models, pos_neg='pos'):
+def fwhm(bounds, models, session_id, pos_neg='pos'):
     """
     Given a tuple of partition bounds and a df of models,
     compute the full width half maximum (FWHM) of the sum
@@ -211,10 +211,10 @@ def fwhm(bounds, models, pos_neg='pos'):
     import matplotlib
     matplotlib.use('PS')
     import matplotlib.pyplot as plt
-    # print(x,y)
     fig, ax = plt.subplots()
     ax.plot(x, y)
-    fig.savefig(join(BASE_DIR, 'output', 'images', f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png'))
+    fig.savefig(join(BASE_DIR, 'output', f'output_{session_id}', 'images', f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png'))
+    plt.close()
 
     halfmax = max(y) / 2
     diffs = [(_ - halfmax) for _ in y]
@@ -276,7 +276,7 @@ AGGREGATIONS = {
 }
 
 
-def aggregate_single_file(partitions, models):
+def aggregate_single_file(partitions, models, session_id):
     """
     Given a list of partition boundaries and models as a
     dataframe with one model per record, compute aggregations
@@ -292,11 +292,11 @@ def aggregate_single_file(partitions, models):
             # the aggregation
 
             # Positive models
-            col, val = func(p, models, pos_neg='pos')
+            col, val = func(p, models, session_id, pos_neg='pos')
             res_dict[col] = val
 
             # Negative models
-            col, val = func(p, models, pos_neg='neg')
+            col, val = func(p, models, session_id, pos_neg='neg')
             res_dict[col] = val
 
     return res_dict
@@ -315,10 +315,12 @@ def generate_output_file(splits, models, session_id):
                   for i, x in enumerate(partitions) if x != 1000]
     res_df = pd.DataFrame(list(), index=models.filename.unique())
 
-    if os.environ.get('STACK'):
+    if os.environ.get('STACK') or True:  # dev only
+        print('doing the thing')
 
+        print('computing...')
         for f in models.filename.unique():
-            d = aggregate_single_file(partitions, models.loc[models.filename == f])
+            d = aggregate_single_file(partitions, models.loc[models.filename == f], session_id)
             for col in d.keys():
                 res_df.loc[f, col] = d[col]
 

@@ -1,10 +1,9 @@
 from .patterns import result_patterns, fit_patterns, param_patterns
 
 import os
-from os.path import join, basename
+from os.path import join, basename, isdir
 import re
 import pandas as pd
-
 import warnings
 warnings.filterwarnings("ignore", 'This pattern has match groups')
 
@@ -17,7 +16,7 @@ else:
     BASE_DIR = '/Users/matthew/freelance/voigt'
 
 
-def read_input():
+def read_input(session_id):
     """
     Reads and parses files in BASE_DIR/input/,
     returning a dataframe with one model per record.
@@ -27,13 +26,17 @@ def read_input():
     res = pd.DataFrame()
 
     # Get all text files in BASE_DIR/input/
-    input_dir = join(BASE_DIR, 'input')
+    input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+
+    if not isdir(input_dir):
+        return res
+
     files = [f for f in os.listdir(input_dir) if f.endswith('.txt')]
 
     # Concatenate each file record (containing all models for that file
     # in one row) to `res`
     for f in files:
-        pth = os.path.join(BASE_DIR, 'input/', f)
+        pth = os.path.join(input_dir, f)
         res = pd.concat([res, parse_file(pth)], sort=True)
 
     # Melt `res` so each record corresponds to a single model
@@ -44,8 +47,13 @@ def read_input():
     res = res.melt(id_vars=id_vars)
     res = res.loc[res.value.notnull()]
 
-    # Write `res` to BASE_DIR/output/data.csv
-    res.to_csv(join(BASE_DIR, 'output', 'data.csv'))
+    # Write `res` to BASE_DIR/output/models.csv
+    output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
+    if not isdir(output_dir):
+        os.mkdir(output_dir)
+        if not isdir(join(output_dir, 'images')):
+            os.mkdir(join(output_dir, 'images'))
+    res.to_csv(join(output_dir, 'models.csv'))
 
     return res
 
