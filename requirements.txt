@@ -12,3 +12,4 @@ seaborn
 rq
 psycopg2-binary
 sqlalchemy
+boto3

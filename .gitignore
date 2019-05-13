@@ -14,3 +14,5 @@ tmp.txt
 *.png
 *.txt
 *.db
+output/output*
+.aws
