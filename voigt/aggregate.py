@@ -6,6 +6,9 @@ from scipy.special import wofz
 from scipy.integrate import quad
 import sqlite3
 from sqlalchemy import create_engine
+import json
+
+from .amazon import upload_file
 
 # from.server import dbconn
 
@@ -68,8 +71,13 @@ def composition(bounds, models, session_id, pos_neg='pos'):
 
     if pos_neg == 'pos':
         models = models.loc[models.variable.str.startswith('pm')]
+        col = f'composition_mg_{pos_neg}_{bounds[0]}_{bounds[1]}'
     elif pos_neg == 'neg':
         models = models.loc[models.variable.str.startswith('nm')]
+        col = f'composition_mg_{pos_neg}'
+
+    mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
+    models = models.loc[mask] if pos_neg == 'pos' else models
 
     bin_area = 0
 
@@ -86,18 +94,25 @@ def composition(bounds, models, session_id, pos_neg='pos'):
             sigma=sigma,
             gamma=gamma
         )
-        func = lambda x: Voigt(x, **params)
 
-        a, e = quad(func, *bounds)
+        # if pos_neg == 'neg':
 
-        if e > 0.01:
-            msg = f'''High error of {e} for composition on model
-            {model.filename}/{prefix} in bounds {bounds}.'''
-            raise Warning(msg)
+        bin_area += amplitude
 
-        bin_area += a * model[prefix + '_amplitude']
+        # continue
 
-    return f'comp_{pos_neg}_{bounds[0]}_{bounds[1]}', bin_area
+        # func = lambda x: Voigt(x, **params)
+
+        # a, e = quad(func, *bounds)
+
+        # if e > 0.01:
+        #     msg = f'''High error of {e} for composition on model
+        #     {model.filename}/{prefix} in bounds {bounds}.'''
+        #     raise Warning(msg)
+
+        # bin_area += a * model[prefix + '_amplitude']
+
+    return col, bin_area
 
 
 def peak_position(bounds, models, session_id, pos_neg='pos'):
@@ -117,11 +132,13 @@ def peak_position(bounds, models, session_id, pos_neg='pos'):
 
     if pos_neg == 'pos':
         models = models.loc[models.variable.str.startswith('pm')]
+        col = f'peak_position_c_{pos_neg}_{bounds[0]}_{bounds[1]}'
     elif pos_neg == 'neg':
         models = models.loc[models.variable.str.startswith('nm')]
+        col = f'peak_position_c_{pos_neg}'
 
     mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
-    models = models.loc[mask]
+    models = models.loc[mask] if pos_neg == 'pos' else models
 
     centers = models.value.values
     weights = [1] * len(centers)
@@ -133,7 +150,7 @@ def peak_position(bounds, models, session_id, pos_neg='pos'):
 
     res = np.dot(centers, weights) / sum(weights)
 
-    return f'wapp_{pos_neg}_{bounds[0]}_{bounds[1]}', res
+    return col, res
 
 
 def fwhm(bounds, models, session_id, pos_neg='pos'):
@@ -176,17 +193,16 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
 
     if pos_neg == 'pos':
         models = models.loc[models.variable.str.startswith('pm')]
+        col = f'fwhm_c_{pos_neg}_{bounds[0]}_{bounds[1]}'
     elif pos_neg == 'neg':
         models = models.loc[models.variable.str.startswith('nm')]
+        col = f'fwhm_c_{pos_neg}'
 
     mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
-    models = models.loc[mask]
+    models = models.loc[mask] if pos_neg == 'pos' else models
 
     if len(models) == 0:
-        return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', np.nan
-
-    # print(models.filename.unique())
-    filename = models.filename.unique().tolist()[0]
+        return col, np.nan
 
     def F(x):
         vals = list()
@@ -202,17 +218,33 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
                       amplitude=amplitude, sigma=sigma, gamma=gamma))
         return sum(vals)
 
-    x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist()
+    x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist() \
+        if pos_neg == 'pos' else np.linspace(30, 1000, 2 * (1000 - 30))
+
     y = [F(_) for _ in x]
 
     # save an image of the peak -- TODO with S3
-    # import matplotlib
-    # matplotlib.use('PS')
-    # import matplotlib.pyplot as plt
-    # fig, ax = plt.subplots()
-    # ax.plot(x, y)
-    # fig.savefig(join(BASE_DIR, 'output', f'output_{session_id}', 'images', f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png'))
-    # plt.close()
+    filename = models.filename.unique().tolist()[0]
+    fn = f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png' \
+        if pos_neg == 'pos' else f'{filename}_neg.png'
+    pth = join(BASE_DIR, 'output', f'output_{session_id}', 'images', fn)
+
+    import matplotlib
+    matplotlib.use('PS')
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    ax.plot(x, y)
+    fig.savefig(pth)
+    plt.close()
+
+    # upload to S3
+    with open(join(BASE_DIR, '.aws'), 'r') as f:
+        creds = json.loads(f.read())
+        AWS_ACCESS = creds['access']
+        AWS_SECRET = creds['secret']
+    s3_pth = join(f'output_{session_id}', fn)
+    upload_file(pth, object_name=s3_pth, aws_access_key_id=AWS_ACCESS,
+                aws_secret_access_key=AWS_SECRET)
 
     halfmax = max(y) / 2
     diffs = [(_ - halfmax) for _ in y]
@@ -229,7 +261,7 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     if not(diffs[0] < 0 and diffs[-1] < 0) or not _is_monotonic_before_and_after_peak(y):
         # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS NOT proper
         # shape')
-        return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', np.nan
+        return col, np.nan
     # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS proper shape')
 
     for i, d in enumerate(diffs):
@@ -266,13 +298,13 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
         res = np.nan
         # raise RuntimeError(f'Failed to find FWHM within bounds {bounds}.')
 
-    return f'fwhm_{pos_neg}_{bounds[0]}_{bounds[1]}', res
+    return col, res
 
 
 AGGREGATIONS = {
-    'comp': composition,
-    'wapp': peak_position,
-    'fwhm': fwhm,
+    'composition_mg': composition,
+    'peak_position_c': peak_position,
+    'fwhm_c': fwhm,
 }
 
 
@@ -285,19 +317,33 @@ def aggregate_single_file(partitions, models, session_id):
     res_dict = dict()
 
     for agg in AGGREGATIONS.keys():
-        func = AGGREGATIONS[agg]
+
         for p in partitions:
             # agg is a function that computes one aggregate for one partition,
             # returning a colname string which includes both the partition and
             # the aggregation
 
+            func = AGGREGATIONS[agg]
+
             # Positive models
             col, val = func(p, models, session_id, pos_neg='pos')
             res_dict[col] = val
 
-            # Negative models
-            col, val = func(p, models, session_id, pos_neg='neg')
-            res_dict[col] = val
+        # Negative models
+        col, val = func(p, models, session_id, pos_neg='neg')
+        res_dict[col] = val
+
+    res_dict['mass_30_mg'] = models['mass_30'].unique().tolist()[0]
+    res_dict['mass_950_mg'] = models['mass_950'].unique().tolist()[0]
+    res_dict['loss_amorph_pct'] = models['loss_amorph'].unique().tolist()[0]
+
+    res_dict['pos_chi_square'] = models['pos_chi_square'].unique().tolist()[0]
+    res_dict['pos_reduced_chi_square'] = models[
+        'pos_reduced_chi_square'].unique().tolist()[0]
+
+    res_dict['mass_loss_pct'] = models['mass_loss_pct'].unique().tolist()[0]
+    res_dict['peak_integration_pct'] = models[
+        'peak_integration'].unique().tolist()[0]
 
     return res_dict
 
@@ -325,11 +371,31 @@ def generate_output_file(splits, models, session_id):
             for col in d.keys():
                 res_df.loc[f, col] = d[col]
 
+    start_cols = [
+        'mass_30_mg',
+        'mass_950_mg',
+        'loss_amorph_pct',
+        'pos_chi_square',
+        'pos_reduced_chi_square',
+        'mass_loss_pct',
+        'peak_integration_pct'
+    ]
+    pos_cols = []
+    neg_cols = [c for c in res_df.columns if 'neg' in c]
+
+    for p in partitions:
+        for agg in AGGREGATIONS.keys():
+            pos_cols.append(f'{agg}_pos_{p[0]}_{p[1]}')
+
+    all_cols = start_cols + pos_cols + neg_cols
+    res_df = res_df[all_cols]
+
     # res_df.to_csv(join(BASE_DIR, 'output', 'output.csv'))
     # print('result saved to output/output.csv...')
 
     print('sending to db.....')
-    dbconn = create_engine(DATABASE_URL).connect() if os.environ.get('STACK') else sqlite3.connect('output.db')
+    dbconn = create_engine(DATABASE_URL).connect() if os.environ.get(
+        'STACK') else sqlite3.connect('output.db')
     res_df.to_sql(f'output_{session_id}', if_exists='fail', con=dbconn)
     print(f'result sent to output_{session_id}')
     dbconn.close()

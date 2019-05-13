@@ -2,7 +2,7 @@ from dash.dependencies import Input, Output, State
 import dash_html_components as html
 from flask import send_file
 
-from os.path import join, isdir
+from os.path import join, isdir, isfile
 import os
 import json
 import base64
@@ -19,12 +19,11 @@ from .extract import parse_file
 from .worker import conn
 from .server import app
 from .extract import read_input
+from .amazon import get_s3
 
 from rq import Queue
 
 # from flask_sqlalchemy import SQLAlchemy
-
-
 
 
 if os.environ.get('STACK'):
@@ -42,14 +41,16 @@ q = Queue(connection=conn)
 
 
 @app.callback(
-    [Output('dl_link', 'href'), Output('dl_link', 'style'), Output('dl_link_images', 'href'), Output('dl_link_images', 'style')],
+    [Output('dl_link', 'href'), Output('dl_link', 'style'), Output(
+        'dl_link_images', 'href'), Output('dl_link_images', 'style')],
     [Input('interval', 'n_intervals')], [State('session-id', 'children')]
 )
 def poll_and_update_on_processing(n_intervals, session_id):
     if n_intervals == 0:
-        return '#', {'display':'none'}, '#', {'display':'none'}
+        return '#', {'display': 'none'}, '#', {'display': 'none'}
 
-    dbconn = create_engine(DATABASE_URL).connect() if os.environ.get('STACK') else sqlite3.connect('output.db')
+    dbconn = create_engine(DATABASE_URL).connect() if os.environ.get(
+        'STACK') else sqlite3.connect('output.db')
 
     query = f'select distinct table_name as name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
 
@@ -68,22 +69,53 @@ def poll_and_update_on_processing(n_intervals, session_id):
 
     if _check_for_output(n_intervals, dbconn):
         df = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
-        df.rename({'index':'filename'}, axis=1, inplace=True)
+        df.rename({'index': 'filename'}, axis=1, inplace=True)
         csv_string = df.to_csv(index=False)
-        outzip = join(BASE_DIR, 'output', f'output_{session_id}', 'images.zip')
-        indir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
-        shutil.make_archive(outzip, 'zip', indir)
         dbconn.close()
-        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {'display':'none'}
+
+        imagedir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
+        outputdir = join(BASE_DIR, 'output', f'output_{session_id}')
+        # don't download if imagedir already full
+        # download s3 images
+        if len(os.listdir(imagedir)) > 0:
+            print(os.listdir(imagedir))
+            if not isfile(join(imagedir, 'images.zip')):
+                shutil.make_archive(join(outputdir, 'images'),
+                                    'zip', imagedir)
+            # {'display': 'none'}
+            return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}
+        with open(join(BASE_DIR, '.aws'), 'r') as f:
+            print('getting aws creds')
+            creds = json.loads(f.read())
+            AWS_ACCESS = creds['access']
+            AWS_SECRET = creds['secret']
+        s3 = get_s3(AWS_ACCESS, AWS_SECRET)
+        # select bucket
+        bucket = s3.Bucket('voigt')
+        # download file into current directory
+        for s3_object in bucket.objects.all():
+            # Need to split s3_object.key into path and file name, else it will
+            # give error file not found.
+            if f'output_{session_id}' not in s3_object.key:
+                continue
+            print(f'downloading file {s3_object.key}')
+            path, filename = os.path.split(s3_object.key)
+            bucket.download_file(s3_object.key, join(imagedir, filename))
+        # zip images
+
+        shutil.make_archive(join(outputdir, 'images'), 'zip', imagedir)
+
+        # {'display': 'none'}
+        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}
     else:
         dbconn.close()
-        return '#', {'display':'none'}, '#', {'display':'none'}
+        return '#', {'display': 'none'}, '#', {'display': 'none'}
 
 
 @app.callback(
     Output('files', 'options'),
     [Input('parse-data-and-refresh-chart', 'n_clicks')
-           ], [State('session-id', 'children')]
+     ], [State('session-id', 'children')]
 )
 def set_file_options(n_clicks, session_id):
 
@@ -103,7 +135,7 @@ def set_file_options(n_clicks, session_id):
                State('upload-data', 'last_modified'),
                State('session-id', 'children')
                ]
-)
+              )
 def upload(list_of_contents, list_of_names, list_of_dates, session_id):
     """
     Takes uploaded .txt files as input and writes them to disk.
@@ -190,7 +222,7 @@ def update_selection_prompt(state):
     ]
 )
 def update_areas_state(bin_width, bin_width_state, areas_state, chart_type, figure):
-    if bin_width == 100 and chart_type == 'sumcurve' and areas_state is None:
+    if bin_width == 10 and chart_type == 'sumcurve' and areas_state is None:
         return '{"areas": {}}', 100
 
     areas_state = json.loads(areas_state)
@@ -264,8 +296,12 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
     ]
 )
 def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, filename, state, areas_state, session_id):
-    funcs = {'count': countplot, 'area': areaplot,
-             'curve': curveplot, 'sumcurve': sumcurveplot}
+    funcs = {
+        'count': countplot,
+        # 'area': areaplot,
+        'curve': curveplot,
+        'sumcurve': sumcurveplot
+    }
 
     models = read_input(session_id)
     if len(models) == 0:
@@ -281,15 +317,15 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
         shapes=[],  # construct_shapes(split_point=split_point),
     )
 
-    if areas_state is not None and chart_type == 'area':
+    # if areas_state is not None and chart_type == 'area':
 
-        areas_state = json.loads(areas_state)
+    #     areas_state = json.loads(areas_state)
 
-        cached = areas_state['areas'].get(str(bin_width)) is not None
-        if cached:
-            print('FOUND CACHED AREA')
-            areas = areas_state['areas'][str(bin_width)]
-            kwargs['areas'] = areas
+    #     cached = areas_state['areas'].get(str(bin_width)) is not None
+    #     if cached:
+    #         print('FOUND CACHED AREA')
+    #         areas = areas_state['areas'][str(bin_width)]
+    #         kwargs['areas'] = areas
 
     if include_negative:
         # print('DISPLAYING NEGATIVE MODELS')
@@ -330,7 +366,7 @@ def download_csv():
                      mimetype='application/zip',
                      attachment_filename=f'images_{session_id}.zip',
                      as_attachment=True
-    )
+                     )
 
 
 # @app.callback(
