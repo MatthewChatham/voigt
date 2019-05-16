@@ -191,6 +191,41 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
 
         return monotonic
 
+    def _is_monotonic_before_first_and_after_last_cross(y, first_cross_idx, last_cross_idx):
+
+        # print(y)
+        first_cross = first_cross_idx
+        last_cross = last_cross_idx
+
+        print(y)
+        print(first_cross)
+        print(last_cross)
+
+
+        # first_cross = int(sum(first_cross) / 2)
+        # last_cross = int(sum(last_cross) / 2)
+
+        # print(first_cross)
+        # print(last_cross)
+
+        monotonic = True
+        before_first_cross = y[:first_cross]
+        after_last_cross = y[last_cross:]
+
+        for i, v in enumerate(before_first_cross):
+            if i == 0:
+                continue
+            if not(v >= before_first_cross[i - 1]):
+                monotonic = False
+
+        for i, v in enumerate(after_last_cross):
+            if i == 0:
+                continue
+            if not(v <= after_last_cross[i - 1]):
+                monotonic = False
+
+        return monotonic
+
     if pos_neg == 'pos':
         models = models.loc[models.variable.str.startswith('pm')]
         col = f'fwhm_c_{pos_neg}_{bounds[0]}_{bounds[1]}'
@@ -238,10 +273,14 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     plt.close()
 
     # upload to S3
-    with open(join(BASE_DIR, '.aws'), 'r') as f:
-        creds = json.loads(f.read())
-        AWS_ACCESS = creds['access']
-        AWS_SECRET = creds['secret']
+    if os.environ.get('STACK'):
+        AWS_ACCESS = os.environ['AWS_ACCESS']
+        AWS_SECRET = os.environ['AWS_SECRET']
+    else:
+        with open(join(BASE_DIR, '.aws'), 'r') as f:
+            creds = json.loads(f.read())
+            AWS_ACCESS = creds['access']
+            AWS_SECRET = creds['secret']
     s3_pth = join(f'output_{session_id}', fn)
     upload_file(pth, object_name=s3_pth, aws_access_key_id=AWS_ACCESS,
                 aws_secret_access_key=AWS_SECRET)
@@ -258,22 +297,21 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     #     print(x)
     #     print(y)
 
-    if not(diffs[0] < 0 and diffs[-1] < 0) or not _is_monotonic_before_and_after_peak(y):
-        # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS NOT proper
-        # shape')
+    if not(diffs[0] < 0 and diffs[-1] < 0):
         return col, np.nan
-    # print(f'Curve fwhm_{pos_neg}_{bounds[0]}_{bounds[1]} IS proper shape')
 
     for i, d in enumerate(diffs):
         if i == 0:
             continue
 
-        if d >= 0 and diffs[i - 1] < 0:
+        if d >= 0 and diffs[i - 1] < 0 and first_cross is None:
             first_cross = (x[i - 1], x[i])
+            first_cross_idx = i - 1
 
         if first_cross is not None and i >= np.argmax(y):
             if d < 0 and diffs[i - 1] > 0:
                 last_cross = (x[i - 1], x[i])
+                last_cross_idx = i
 
     # print()
     # print()
@@ -286,19 +324,25 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     # print()
     # print()
 
-    try:
-        lowerbound = sum(first_cross) / 2  # x[diffs.index(0)]
-        # x[len(diffs) - diffs[::-1].index(0) - 1]
-        upperbound = sum(last_cross) / 2
-        if abs((upperbound - lowerbound) - (bounds[1] - bounds[0])) < 1e-14:
-            raise ValueError('FWHM is width of bounds')
-        res = upperbound - lowerbound
-    except ValueError:
-        # print('Failed to find FWHM')
-        res = np.nan
-        # raise RuntimeError(f'Failed to find FWHM within bounds {bounds}.')
+    if _is_monotonic_before_first_and_after_last_cross(y, first_cross_idx, last_cross_idx):
+        try:
+            lowerbound = sum(first_cross) / 2  # x[diffs.index(0)]
+            # x[len(diffs) - diffs[::-1].index(0) - 1]
+            upperbound = sum(last_cross) / 2
+            if abs((upperbound - lowerbound) - (bounds[1] - bounds[0])) < 1e-14:
+                raise ValueError('FWHM is width of bounds')
+            res = upperbound - lowerbound
+        except ValueError:
+            # print('Failed to find FWHM')
+            res = np.nan
+            # raise RuntimeError(f'Failed to find FWHM within bounds
+            # {bounds}.')
 
-    return col, res
+        return col, res
+
+    else:
+        print('not monotonic!')
+        return col, np.nan
 
 
 AGGREGATIONS = {
@@ -396,7 +440,7 @@ def generate_output_file(splits, models, session_id):
     print('sending to db.....')
     dbconn = create_engine(DATABASE_URL).connect() if os.environ.get(
         'STACK') else sqlite3.connect('output.db')
-    res_df.to_sql(f'output_{session_id}', if_exists='fail', con=dbconn)
+    res_df.to_sql(f'output_{session_id}', if_exists='replace', con=dbconn)
     print(f'result sent to output_{session_id}')
     dbconn.close()
 

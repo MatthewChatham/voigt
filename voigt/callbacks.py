@@ -41,13 +41,18 @@ q = Queue(connection=conn)
 
 
 @app.callback(
-    [Output('dl_link', 'href'), Output('dl_link', 'style'), Output(
-        'dl_link_images', 'href'), Output('dl_link_images', 'style')],
+    [
+        Output('dl_link', 'href'),
+        Output('dl_link', 'style'),
+        Output('dl_link_images', 'href'),
+        Output('dl_link_images', 'style'),
+        Output('feedback', 'children')
+    ],
     [Input('interval', 'n_intervals')], [State('session-id', 'children')]
 )
 def poll_and_update_on_processing(n_intervals, session_id):
     if n_intervals == 0:
-        return '#', {'display': 'none'}, '#', {'display': 'none'}
+        return '#', {'display': 'none'}, '#', {'display': 'none'}, ''
 
     dbconn = create_engine(DATABASE_URL).connect() if os.environ.get(
         'STACK') else sqlite3.connect('output.db')
@@ -78,17 +83,21 @@ def poll_and_update_on_processing(n_intervals, session_id):
         # don't download if imagedir already full
         # download s3 images
         if len(os.listdir(imagedir)) > 0:
-            print(os.listdir(imagedir))
+            # print(os.listdir(imagedir))
             if not isfile(join(imagedir, 'images.zip')):
                 shutil.make_archive(join(outputdir, 'images'),
                                     'zip', imagedir)
             # {'display': 'none'}
-            return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}
-        with open(join(BASE_DIR, '.aws'), 'r') as f:
-            print('getting aws creds')
-            creds = json.loads(f.read())
-            AWS_ACCESS = creds['access']
-            AWS_SECRET = creds['secret']
+            return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}, 'Your results are ready!'
+        if not os.environ.get('STACK'):
+            with open(join(BASE_DIR, '.aws'), 'r') as f:
+                print('getting aws creds')
+                creds = json.loads(f.read())
+                AWS_ACCESS = creds['access']
+                AWS_SECRET = creds['secret']
+        else:
+            AWS_ACCESS = os.environ['AWS_ACCESS']
+            AWS_SECRET = os.environ['AWS_SECRET']
         s3 = get_s3(AWS_ACCESS, AWS_SECRET)
         # select bucket
         bucket = s3.Bucket('voigt')
@@ -106,10 +115,16 @@ def poll_and_update_on_processing(n_intervals, session_id):
         shutil.make_archive(join(outputdir, 'images'), 'zip', imagedir)
 
         # {'display': 'none'}
-        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}
+        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}, 'Your results are ready!'
     else:
+        # q = Queue(connection=conn)
         dbconn.close()
-        return '#', {'display': 'none'}, '#', {'display': 'none'}
+        if len(q) == 0:
+            print('found nothing in queue')
+            return '#', {'display': 'none'}, '#', {'display': 'none'}, 'Ready.'
+        else:
+            print('found something in queue')
+            return '#', {'display': 'none'}, '#', {'display': 'none'}, 'Please wait while your request is processed....'
 
 
 @app.callback(
@@ -305,7 +320,7 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
 
     models = read_input(session_id)
     if len(models) == 0:
-        print('returning emptyplot')
+        # print('returning emptyplot')
         return emptyplot()
     if filename:
         models = models.loc[models.filename == filename]
@@ -337,26 +352,48 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
     return funcs[chart_type](**kwargs)
 
 
+# @app.callback(
+#     Output('submit-state', 'children'),
+#     [Input('submit', 'n_clicks'), Input('interval', 'n_intervals')]
+
+# )
+# def update_submit_state(n_clicks, n_intervals):
+#     if n_clicks is None:
+#         return 'ready'
+#     elif len(q.job_ids) > 0:
+#         return 'processing'
+#     else:
+#         return 'done'
+
+# @app.callback()
+# def update_feedback():
+#     pass
+
+
 @app.callback(
-    Output('feedback', 'children'),
+    Output('submit-state', 'children'),
     [Input('submit', 'n_clicks')],
     [
         State('state', 'children'),
-        State('session-id', 'children')
+        State('session-id', 'children'),
+        State('submit-state', 'children')
     ]
 )
-def submit(n_clicks, state, session_id):
-    if n_clicks is None:
-        return ''
-    if n_clicks is not None:
-        if len(q.job_ids) == 0:
-            splits = json.loads(state)['splits']
-            models = read_input(session_id)
-            if len(models) == 0:
-                return 'Please upload some TGA files first!'
-            q.enqueue(generate_output_file, splits, models, session_id)
-            return 'Please wait while your request is processed...'
-        return 'Please wait until the current job is finished!'
+def submit(n_clicks, state, session_id, submit_state):
+    # if submit_state is None:
+    #     return ''
+    # elif submit_state == 'processing':
+    #     return 'Please wait until the current job is finished!'
+    # elif submit_state == 'done':
+    #     return 'Your results are ready!'
+    # elif submit_state == 'ready':
+    if n_clicks is not None and len(q.job_ids) == 0:
+        splits = json.loads(state)['splits']
+        models = read_input(session_id)
+        if len(models) == 0:
+            return 'Please upload some TGA files first!'
+        q.enqueue(generate_output_file, splits, models, session_id)
+        return 'processing'
 
 
 @app.server.route('/dash/download')

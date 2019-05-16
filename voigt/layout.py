@@ -167,7 +167,7 @@ def _layout():
 
         dcc.Interval(
             id='interval',
-            interval=10 * 1000,  # milliseconds
+            interval=1 * 1000,  # milliseconds
             n_intervals=0,
         ),
         html.P(id='feedback'),
@@ -179,7 +179,8 @@ def _layout():
                href='/dash/download', id='dl_link_images'),
         html.Div(id='state', style={'display': 'none'}),
         html.Div(id='areas-state', style={'display': 'none'}),
-        html.Div(id='bin-width-state', style={'display': 'none'})
+        html.Div(id='bin-width-state', style={'display': 'none'}),
+        html.Div(id='submit-state', style={'display':'none'})
     ])
 
 
