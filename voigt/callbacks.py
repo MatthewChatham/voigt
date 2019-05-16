@@ -22,6 +22,7 @@ from .extract import read_input
 from .amazon import get_s3
 
 from rq import Queue
+from rq.registry import StartedJobRegistry
 
 # from flask_sqlalchemy import SQLAlchemy
 
@@ -119,7 +120,8 @@ def poll_and_update_on_processing(n_intervals, session_id):
     else:
         # q = Queue(connection=conn)
         dbconn.close()
-        if len(q) == 0:
+        registry = StartedJobRegistry('default', connection=conn)
+        if len(registry.get_job_ids()) == 0:
             print('found nothing in queue')
             return '#', {'display': 'none'}, '#', {'display': 'none'}, 'Ready.'
         else:
@@ -167,6 +169,14 @@ def upload(list_of_contents, list_of_names, list_of_dates, session_id):
     if not isdir(input_dir):
         try:
             os.mkdir(input_dir)
+        except FileExistsError:
+            pass
+
+    output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
+    if not isdir(output_dir):
+        try:
+            os.mkdir(output_dir)
+            os.mkdir(join(output_dir, 'images'))
         except FileExistsError:
             pass
 
@@ -387,7 +397,8 @@ def submit(n_clicks, state, session_id, submit_state):
     # elif submit_state == 'done':
     #     return 'Your results are ready!'
     # elif submit_state == 'ready':
-    if n_clicks is not None and len(q.job_ids) == 0:
+    registry = StartedJobRegistry('default', connection=conn)
+    if n_clicks is not None and len(registry.get_job_ids()) == 0:
         splits = json.loads(state)['splits']
         models = read_input(session_id)
         if len(models) == 0:

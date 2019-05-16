@@ -49,10 +49,6 @@ def read_input(session_id):
 
     # Write `res` to BASE_DIR/output/models.csv
     output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
-    if not isdir(output_dir):
-        os.mkdir(output_dir)
-        if not isdir(join(output_dir, 'images')):
-            os.mkdir(join(output_dir, 'images'))
     res.to_csv(join(output_dir, 'models.csv'))
 
     return res
