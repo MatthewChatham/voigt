@@ -27,7 +27,6 @@ from rq.registry import StartedJobRegistry
 
 # from flask_sqlalchemy import SQLAlchemy
 
-
 if os.environ.get('STACK'):
     print('RUNNING ON HEROKU')
     env = 'Heroku'
@@ -36,6 +35,9 @@ if os.environ.get('STACK'):
 else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
+
+
+eng = create_engine(DATABASE_URL)
 
 
 # Redis queue for asynchronous processing
@@ -58,7 +60,7 @@ def poll_and_update_on_processing(n_intervals, session_id):
 
     res = None
 
-    dbconn = create_engine(DATABASE_URL).connect() if os.environ.get(
+    dbconn = eng.connect() if os.environ.get(
         'STACK') else sqlite3.connect('output.db')
 
     query = f'select distinct table_name as name from information_schema.tables' if os.environ.get('STACK') else 'select distinct name from sqlite_master'
@@ -128,13 +130,16 @@ def poll_and_update_on_processing(n_intervals, session_id):
         input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
         # TODO concurrency? what if mutliple ppl use app at same time?
         if len(registry.get_job_ids()) == 0:
-            msg = dbc.Alert('Ready.', color='primary') if isdir(input_dir) else dbc.Alert('Upload some TGA files first!', color='warning')
+            msg = dbc.Alert('Ready.', color='primary') if isdir(
+                input_dir) else dbc.Alert('Upload some TGA files first!', color='warning')
             res = ('#', {'display': 'none'}, '#', {'display': 'none'}, msg)
         else:
-            res = ('#', {'display': 'none'}, '#', {'display': 'none'}, dbc.Alert(['Please wait while your request is processed.', dbc.Spinner(type='grow')], color='danger'))
+            res = ('#', {'display': 'none'}, '#', {'display': 'none'}, dbc.Alert(
+                ['Please wait while your request is processed.', dbc.Spinner(type='grow')], color='danger'))
 
     dbconn.close()
     return res
+
 
 @app.callback(
     Output("collapse1", "is_open"),
@@ -146,6 +151,7 @@ def toggle_collapse(n, is_open):
         return not is_open
     return is_open
 
+
 @app.callback(
     Output("collapse2", "is_open"),
     [Input("collapse-button2", "n_clicks")],
@@ -155,6 +161,7 @@ def toggle_collapse(n, is_open):
     if n:
         return not is_open
     return is_open
+
 
 @app.callback(
     Output("collapse3", "is_open"),
