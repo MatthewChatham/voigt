@@ -264,8 +264,21 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
         if pos_neg == 'pos' else f'{filename}_neg.png'
     imagedir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
     pth = join(imagedir, fn)
-    if not isdir(imagedir):
-        os.mkdir(imagedir)
+    # make a subdirectory for this session if one doesn't already exist
+    input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+    if not isdir(input_dir):
+        try:
+            os.mkdir(input_dir)
+        except FileExistsError:
+            pass
+
+    output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
+    if not isdir(output_dir):
+        try:
+            os.mkdir(output_dir)
+            os.mkdir(join(output_dir, 'images'))
+        except FileExistsError:
+            pass
     import matplotlib
     matplotlib.use('PS')
     import matplotlib.pyplot as plt
