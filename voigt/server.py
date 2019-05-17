@@ -1,4 +1,5 @@
 import dash
+import dash_bootstrap_components as dbc
 from sqlalchemy import create_engine
 import sqlite3
 import os
@@ -12,11 +13,12 @@ else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.BOOTSTRAP]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app.config['suppress_callback_exceptions'] = True
+app.scripts.config.serve_locally=True
 
 # app.server.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 # db = SQLAlchemy(app.server)

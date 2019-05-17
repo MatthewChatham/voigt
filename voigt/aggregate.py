@@ -1,5 +1,5 @@
 import os
-from os.path import join
+from os.path import join, isfile, isdir
 import pandas as pd
 import numpy as np
 from scipy.special import wofz
@@ -258,12 +258,14 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
 
     y = [F(_) for _ in x]
 
-    # save an image of the peak -- TODO with S3
+    # save an image of the peak to the filesystem
     filename = models.filename.unique().tolist()[0]
     fn = f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png' \
         if pos_neg == 'pos' else f'{filename}_neg.png'
-    pth = join(BASE_DIR, 'output', f'output_{session_id}', 'images', fn)
-
+    imagedir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
+    pth = join(imagedir, fn)
+    if not isdir(imagedir):
+        os.mkdir(imagedir)
     import matplotlib
     matplotlib.use('PS')
     import matplotlib.pyplot as plt
@@ -272,7 +274,7 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     fig.savefig(pth)
     plt.close()
 
-    # upload to S3
+    # upload image to S3
     if os.environ.get('STACK'):
         AWS_ACCESS = os.environ['AWS_ACCESS']
         AWS_SECRET = os.environ['AWS_SECRET']

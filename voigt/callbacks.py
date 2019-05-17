@@ -1,5 +1,6 @@
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
+import dash_bootstrap_components as dbc
 from flask import send_file
 
 from os.path import join, isdir, isfile
@@ -55,6 +56,8 @@ def poll_and_update_on_processing(n_intervals, session_id):
     if n_intervals == 0:
         return '#', {'display': 'none'}, '#', {'display': 'none'}, ''
 
+    res = None
+
     dbconn = create_engine(DATABASE_URL).connect() if os.environ.get(
         'STACK') else sqlite3.connect('output.db')
 
@@ -77,7 +80,6 @@ def poll_and_update_on_processing(n_intervals, session_id):
         df = pd.read_sql(f'select * from output_{session_id}', con=dbconn)
         df.rename({'index': 'filename'}, axis=1, inplace=True)
         csv_string = df.to_csv(index=False)
-        dbconn.close()
 
         imagedir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
         outputdir = join(BASE_DIR, 'output', f'output_{session_id}')
@@ -89,7 +91,7 @@ def poll_and_update_on_processing(n_intervals, session_id):
                 shutil.make_archive(join(outputdir, 'images'),
                                     'zip', imagedir)
             # {'display': 'none'}
-            return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}, 'Your results are ready!'
+            res = ("data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}, 'Your results are ready!')
         if not os.environ.get('STACK'):
             with open(join(BASE_DIR, '.aws'), 'r') as f:
                 print('getting aws creds')
@@ -108,25 +110,61 @@ def poll_and_update_on_processing(n_intervals, session_id):
             # give error file not found.
             if f'output_{session_id}' not in s3_object.key:
                 continue
-            print(f'downloading file {s3_object.key}')
             path, filename = os.path.split(s3_object.key)
-            bucket.download_file(s3_object.key, join(imagedir, filename))
+
+            fpth = join(imagedir, filename)
+
+            if not isfile(fpth):
+                print(f'downloading file {s3_object.key}')
+                bucket.download_file(s3_object.key, fpth)
         # zip images
 
         shutil.make_archive(join(outputdir, 'images'), 'zip', imagedir)
 
         # {'display': 'none'}
-        return "data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}, 'Your results are ready!'
+        res = ("data:text/csv;charset=utf-8," + quote(csv_string), {}, f'/dash/download?session_id={session_id}', {}, dbc.Alert('Your results are ready!', color='success'))
     else:
-        # q = Queue(connection=conn)
-        dbconn.close()
         registry = StartedJobRegistry('default', connection=conn)
+        input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+        # TODO concurrency? what if mutliple ppl use app at same time?
         if len(registry.get_job_ids()) == 0:
-            print('found nothing in queue')
-            return '#', {'display': 'none'}, '#', {'display': 'none'}, 'Ready.'
+            msg = dbc.Alert('Ready.', color='primary') if isdir(input_dir) else dbc.Alert('Upload some TGA files first!', color='warning')
+            res = ('#', {'display': 'none'}, '#', {'display': 'none'}, msg)
         else:
-            print('found something in queue')
-            return '#', {'display': 'none'}, '#', {'display': 'none'}, 'Please wait while your request is processed....'
+            res = ('#', {'display': 'none'}, '#', {'display': 'none'}, dbc.Alert(['Please wait while your request is processed.', dbc.Spinner(type='grow')], color='danger'))
+
+    dbconn.close()
+    return res
+
+@app.callback(
+    Output("collapse1", "is_open"),
+    [Input("collapse-button1", "n_clicks")],
+    [State("collapse1", "is_open")],
+)
+def toggle_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("collapse2", "is_open"),
+    [Input("collapse-button2", "n_clicks")],
+    [State("collapse2", "is_open")],
+)
+def toggle_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("collapse3", "is_open"),
+    [Input("collapse-button3", "n_clicks")],
+    [State("collapse3", "is_open")],
+)
+def toggle_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
 
 
 @app.callback(
@@ -221,7 +259,7 @@ def upload(list_of_contents, list_of_names, list_of_dates, session_id):
 
     except Exception as e:
         _clean()
-        return f'An error occurred while uploading files: {e}', {'display': 'none'}
+        return f'An error occurred while uploading files: {e}'
 
 
 @app.callback(
@@ -321,6 +359,8 @@ def update_state(add, remove, split_point, state, figure, bin_width, chart_type)
     ]
 )
 def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, filename, state, areas_state, session_id):
+    include_negative = include_negative == 'True'
+
     funcs = {
         'count': countplot,
         # 'area': areaplot,
@@ -353,10 +393,10 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks, include_negative, 
     #         kwargs['areas'] = areas
 
     if include_negative:
-        # print('DISPLAYING NEGATIVE MODELS')
+        print('DISPLAYING NEGATIVE MODELS')
         kwargs['exclude_negative'] = False
     else:
-        # print('NOT displaying negative models')
+        print('NOT displaying negative models')
         pass
 
     return funcs[chart_type](**kwargs)

@@ -13,3 +13,4 @@ rq
 psycopg2-binary
 sqlalchemy
 boto3
+dash-bootstrap-components
