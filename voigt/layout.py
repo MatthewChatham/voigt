@@ -215,12 +215,12 @@ def _layout():
                                 ),
                             ], action=True),
                             dbc.ListGroupItem([
-                                html.Span('Full Width Half Maximum: Average of peak centers'
+                                html.Span('Weighted Average Peak Position: Average of peak centers'
                                           ' in the region, weighted by their total area (not '
                                           'just area in that region).',
                                           id='collapse-button3', style={'cursor': 'pointer'}),
                                 dbc.Collapse(
-                                    dbc.Card(dbc.CardBody(fwhm_tooltiptext), style={
+                                    dbc.Card(dbc.CardBody(wapp_tooltiptext), style={
                                              'margin': '10px'}),
                                     id="collapse3",
                                 ),
