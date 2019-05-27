@@ -123,15 +123,17 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
             # download file into current directory
             print(f'found S3 buckets {bucket.objects.all()}')
             for s3_object in bucket.objects.all():
+                print(f'found S3 object {s3_object.key}')
                 do_zip = False
                 # Need to split s3_object.key into path and file name, else it will
                 # give error file not found.
-                if f'output_{session_id}_{jobs[-1]}' not in s3_object.key:
+                if f'output_{session_id}/job_{jobs[-1]}' not in s3_object.key:
                     continue
                 path, filename = os.path.split(s3_object.key)
 
                 fpth = join(imagedir, filename)
                 
+                print(f'checking for file {s3_object.key}')
                 if not isfile(fpth):
                     print(f'downloading file {s3_object.key}')
                     bucket.download_file(s3_object.key, fpth)
