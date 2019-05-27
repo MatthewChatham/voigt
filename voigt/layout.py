@@ -123,22 +123,22 @@ def _layout():
                     html.Span('File: ', style={'magin-top': '0'}),
                     dcc.Dropdown(
                         id='files',
-                        placeholder='View models from a single file',
+                        placeholder='View peak from a single file',
                         style={'width': '250px', 'margin-bottom': '15px'}
                     ),
-                    html.Span('Include negative models? ',
+                    html.Span('Include negative peaks? ',
                               style={'margin-top': '50px'}),
                     dcc.Dropdown(
                         id='include-negative',
                         options=[
-                            {'label': 'Include negative models',
+                            {'label': 'Include negative peaks',
                              'value': 'True'},
-                            {'label': 'Exclude negative models',
+                            {'label': 'Exclude negative peaks',
                              'value': 'False'},
                         ],
                         value='False',
                         style={'width': '250px', 'margin-bottom': '15px'},
-                        placeholder='Include negative models'
+                        placeholder='Include negative peaks'
                     ),
                 ]),
                 dbc.Col([
@@ -210,7 +210,7 @@ def _layout():
 
                             dbc.ListGroupItem([
                                 html.Span(
-                                    'Composition: Total area in the region.', id='collapse-button2', style={'cursor': 'pointer'}),
+                                    'Composition: Total area of peaks with centers in the region.', id='collapse-button2', style={'cursor': 'pointer'}),
                                 dbc.Collapse(
                                     dbc.Card(dbc.CardBody(comp_tooltiptext), style={
                                              'margin': '10px'}),
@@ -251,11 +251,11 @@ def _layout():
                                 'loss_amorph_pct, pos_chi_square, pos_reduced_chi_square, '
                                 'mass_loss_pct, peak_integration_pct'),
                             dbc.ListGroupItem(
-                                'Positive model aggregates for each partition '
+                                'Positive peak aggregates for each partition '
                                 'region. Consists of columns of form '
                                 '`[aggregate]_pos_lowerbound_upperbound`.'),
                             dbc.ListGroupItem(
-                                'Negative model aggregates, colums of form `[aggregate]_neg`.'),
+                                'Negative peak aggregates, colums of form `[aggregate]_neg`.'),
 
 
                         ])

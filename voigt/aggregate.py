@@ -280,15 +280,15 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
             sigma = model.loc[prefix + '_sigma']
             gamma = sigma
             amplitude = model.loc[prefix + '_amplitude']
-            if 'nm' in prefix:
-                amplitude = -amplitude
+            # if 'nm' in prefix:
+            #     amplitude = -amplitude
 
             res =  np.array(Voigt(x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
             # print(vals, res)
             vals = np.concatenate([vals, res], axis=0)
         return vals.sum(axis=0)
 
-    x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist() \
+    x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])) \
         if pos_neg == 'pos' else np.linspace(30, 1000, 2 * (1000 - 30))
 
     y = F(x)
@@ -423,7 +423,7 @@ def aggregate_single_file(partitions, models, session_id, job_id):
         res_dict[col] = val
 
     res_dict['mass_30_mg'] = models['mass_30'].unique().tolist()[0]
-    res_dict['mass_950_mg'] = models['mass_950'].unique().tolist()[0]
+    res_dict['mass_pct_950'] = models['mass_pct_950'].unique().tolist()[0]
     res_dict['loss_amorph_pct'] = models['loss_amorph'].unique().tolist()[0]
 
     res_dict['pos_chi_square'] = models['pos_chi_square'].unique().tolist()[0]
@@ -480,7 +480,7 @@ def generate_output_file(splits, models, session_id, job_id):
 
     start_cols = [
         'mass_30_mg',
-        'mass_950_mg',
+        'mass_pct_950',
         'loss_amorph_pct',
         'pos_chi_square',
         'pos_reduced_chi_square',
