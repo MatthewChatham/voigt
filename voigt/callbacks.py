@@ -96,50 +96,54 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
         # download s3 images
         if len(os.listdir(imagedir)) > 0:
             # print(os.listdir(imagedir))
-            if not isfile(join(imagedir, 'images.zip')):
-                shutil.make_archive(join(outputdir, 'images'),
-                                    'zip', imagedir)
+            if not isfile(join(outputdir, 'images.zip')):
+                tmp = shutil.make_archive(imagedir, 'zip', imagedir)
+                print(f'made archive {tmp}')
                 # for f in os.listdir(imagedir):
                 #     os.unlink(join(imagedir, f))
             # {'display': 'none'}
             res = ("data:text/csv;charset=utf-8," + quote(csv_string), {},
                    f'/dash/download?session_id={session_id}&job_id={jobs[-1]}', {},
-                   'Your results are ready!')
-        if not os.environ.get('STACK'):
-            with open(join(BASE_DIR, '.aws'), 'r') as f:
-                print('getting aws creds')
-                creds = json.loads(f.read())
-                AWS_ACCESS = creds['access']
-                AWS_SECRET = creds['secret']
+                   dbc.Alert('Your results are ready!', color='success'))
+        
         else:
-            AWS_ACCESS = os.environ['AWS_ACCESS']
-            AWS_SECRET = os.environ['AWS_SECRET']
-        s3 = get_s3(AWS_ACCESS, AWS_SECRET)
-        # select bucket
-        bucket = s3.Bucket('voigt')
-        # download file into current directory
-        print(f'found S3 buckets {bucket.objects.all()}')
-        for s3_object in bucket.objects.all():
-            do_zip = False
-            # Need to split s3_object.key into path and file name, else it will
-            # give error file not found.
-            if f'output_{session_id}_{jobs[-1]}' not in s3_object.key:
-                continue
-            path, filename = os.path.split(s3_object.key)
 
-            fpth = join(imagedir, filename)
-            
-            if not isfile(fpth):
-                print(f'downloading file {s3_object.key}')
-                bucket.download_file(s3_object.key, fpth)
-                do_zip = True
+            if not os.environ.get('STACK'):
+                with open(join(BASE_DIR, '.aws'), 'r') as f:
+                    print('getting aws creds')
+                    creds = json.loads(f.read())
+                    AWS_ACCESS = creds['access']
+                    AWS_SECRET = creds['secret']
+            else:
+                AWS_ACCESS = os.environ['AWS_ACCESS']
+                AWS_SECRET = os.environ['AWS_SECRET']
+            s3 = get_s3(AWS_ACCESS, AWS_SECRET)
+            # select bucket
+            bucket = s3.Bucket('voigt')
+            # download file into current directory
+            print(f'found S3 buckets {bucket.objects.all()}')
+            for s3_object in bucket.objects.all():
+                do_zip = False
+                # Need to split s3_object.key into path and file name, else it will
+                # give error file not found.
+                if f'output_{session_id}_{jobs[-1]}' not in s3_object.key:
+                    continue
+                path, filename = os.path.split(s3_object.key)
 
-        if do_zip:
-            shutil.make_archive(join(outputdir, 'images'), 'zip', imagedir)
+                fpth = join(imagedir, filename)
+                
+                if not isfile(fpth):
+                    print(f'downloading file {s3_object.key}')
+                    bucket.download_file(s3_object.key, fpth)
+                    do_zip = True
 
-        res = ("data:text/csv;charset=utf-8," + quote(csv_string), {},
-               f'/dash/download?session_id={session_id}&job_id={jobs[-1]}', {},
-               dbc.Alert('Your results are ready!', color='success'))
+            if do_zip:
+                tmp = shutil.make_archive(imagedir, 'zip', imagedir)
+                print(f'made archive {tmp}')
+
+            res = ("data:text/csv;charset=utf-8," + quote(csv_string), {},
+                   f'/dash/download?session_id={session_id}&job_id={jobs[-1]}', {},
+                   dbc.Alert('Your results are ready!', color='success'))
     else:
         registry = StartedJobRegistry('default', connection=conn)
         input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
