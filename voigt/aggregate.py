@@ -57,7 +57,7 @@ def compute_bin_areas(bins, DATA):
     return areas
 
 
-def composition(bounds, models, session_id, pos_neg='pos'):
+def composition(bounds, models, session_id, job_id, pos_neg='pos'):
     """
     Given a tuple of bounds and a df of models,
     compute the total area within the bounds.
@@ -115,7 +115,7 @@ def composition(bounds, models, session_id, pos_neg='pos'):
     return col, bin_area
 
 
-def peak_position(bounds, models, session_id, pos_neg='pos'):
+def peak_position(bounds, models, session_id, job_id, pos_neg='pos'):
     """
     Given a tuple of partition bounds and a df of models,
     compute weighted average peak position (WAPP) within bounds.
@@ -153,7 +153,7 @@ def peak_position(bounds, models, session_id, pos_neg='pos'):
     return col, res
 
 
-def fwhm(bounds, models, session_id, pos_neg='pos'):
+def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
     """
     Given a tuple of partition bounds and a df of models,
     compute the full width half maximum (FWHM) of the sum
@@ -200,7 +200,6 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
         print(y)
         print(first_cross)
         print(last_cross)
-
 
         # first_cross = int(sum(first_cross) / 2)
         # last_cross = int(sum(last_cross) / 2)
@@ -262,23 +261,10 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
     filename = models.filename.unique().tolist()[0]
     fn = f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png' \
         if pos_neg == 'pos' else f'{filename}_neg.png'
-    imagedir = join(BASE_DIR, 'output', f'output_{session_id}', 'images')
+    output_dir = join(BASE_DIR, 'output',
+                      f'output_{session_id}', f'job_{job_id}')
+    imagedir = join(output_dir, 'images')
     pth = join(imagedir, fn)
-    # make a subdirectory for this session if one doesn't already exist
-    input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
-    if not isdir(input_dir):
-        try:
-            os.mkdir(input_dir)
-        except FileExistsError:
-            pass
-
-    output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
-    if not isdir(output_dir):
-        try:
-            os.mkdir(output_dir)
-            os.mkdir(join(output_dir, 'images'))
-        except FileExistsError:
-            pass
     import matplotlib
     matplotlib.use('PS')
     import matplotlib.pyplot as plt
@@ -296,7 +282,7 @@ def fwhm(bounds, models, session_id, pos_neg='pos'):
             creds = json.loads(f.read())
             AWS_ACCESS = creds['access']
             AWS_SECRET = creds['secret']
-    s3_pth = join(f'output_{session_id}', fn)
+    s3_pth = join(f'output_{session_id}', f'job_{job_id}', fn)
     upload_file(pth, object_name=s3_pth, aws_access_key_id=AWS_ACCESS,
                 aws_secret_access_key=AWS_SECRET)
 
@@ -367,7 +353,7 @@ AGGREGATIONS = {
 }
 
 
-def aggregate_single_file(partitions, models, session_id):
+def aggregate_single_file(partitions, models, session_id, job_id):
     """
     Given a list of partition boundaries and models as a
     dataframe with one model per record, compute aggregations
@@ -385,11 +371,11 @@ def aggregate_single_file(partitions, models, session_id):
             func = AGGREGATIONS[agg]
 
             # Positive models
-            col, val = func(p, models, session_id, pos_neg='pos')
+            col, val = func(p, models, session_id, job_id, pos_neg='pos')
             res_dict[col] = val
 
         # Negative models
-        col, val = func(p, models, session_id, pos_neg='neg')
+        col, val = func(p, models, session_id, job_id, pos_neg='neg')
         res_dict[col] = val
 
     res_dict['mass_30_mg'] = models['mass_30'].unique().tolist()[0]
@@ -407,7 +393,7 @@ def aggregate_single_file(partitions, models, session_id):
     return res_dict
 
 
-def generate_output_file(splits, models, session_id):
+def generate_output_file(splits, models, session_id, job_id):
     """
     Given an iterable of `splits` and a df of `models`,
     computes model aggregates for each region of the partition
@@ -426,7 +412,7 @@ def generate_output_file(splits, models, session_id):
         print('computing...')
         for f in models.filename.unique():
             d = aggregate_single_file(partitions, models.loc[
-                                      models.filename == f], session_id)
+                                      models.filename == f], session_id, job_id)
             for col in d.keys():
                 res_df.loc[f, col] = d[col]
 
@@ -455,18 +441,9 @@ def generate_output_file(splits, models, session_id):
     print('sending to db.....')
     dbconn = create_engine(DATABASE_URL).connect() if os.environ.get(
         'STACK') else sqlite3.connect('output.db')
-    res_df.to_sql(f'output_{session_id}', if_exists='replace', con=dbconn)
-    print(f'result sent to output_{session_id}')
+    res_df.to_sql(f'output_{session_id}_{job_id}',
+                  if_exists='replace', con=dbconn)
+    print(f'result sent to output_{session_id}_{job_id}')
     dbconn.close()
 
     return res_df
-
-
-def test():
-    result = generate_output_file(test_partitions, test_data)
-    # print('Result:', result.columns, '\n', result.head())
-    result.to_csv(join(BASE_DIR, 'output', 'dev_result.csv'))
-
-
-if __name__ == '__main__':
-    test()

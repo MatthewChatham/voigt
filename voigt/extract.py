@@ -23,13 +23,13 @@ def read_input(session_id):
     """
 
     # The dataframe to be returned
-    res = pd.DataFrame()
+    models = pd.DataFrame()
 
     # Get all text files in BASE_DIR/input/
     input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
 
     if not isdir(input_dir):
-        return res
+        return models
 
     files = [f for f in os.listdir(input_dir) if f.endswith('.txt')]
 
@@ -37,21 +37,21 @@ def read_input(session_id):
     # in one row) to `res`
     for f in files:
         pth = os.path.join(input_dir, f)
-        res = pd.concat([res, parse_file(pth)], sort=True)
+        models = pd.concat([models, parse_file(pth)], sort=True)
 
     # Melt `res` so each record corresponds to a single model
-    id_vars = pd.Series(res.columns)
+    id_vars = pd.Series(models.columns)
     mask = ~(id_vars.str.contains('(p|n)m', regex=True) &
              id_vars.str.contains('center'))
     id_vars = id_vars.loc[mask]
-    res = res.melt(id_vars=id_vars)
-    res = res.loc[res.value.notnull()]
+    models = models.melt(id_vars=id_vars)
+    models = models.loc[models.value.notnull()]
 
     # Write `res` to BASE_DIR/output/models.csv
-    output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
-    res.to_csv(join(output_dir, 'models.csv'))
+    # output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
+    # models.to_csv(join(output_dir, 'models.csv'))
 
-    return res
+    return models
 
 
 def parse_file(path):

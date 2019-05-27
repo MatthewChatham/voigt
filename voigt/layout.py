@@ -34,7 +34,10 @@ def _layout():
                 [
                     dbc.Col(
                         [
-
+                            html.P('Note: Refreshing page will \
+                                    remove input files. \
+                                    Uploading multiple times will first \
+                                    remove all existing files.'),
                             dcc.Upload(
                                 id='upload-data',
                                 children=html.Div([
@@ -75,7 +78,7 @@ def _layout():
 
                 dbc.Col([
                     html.Div('Chart type: ', style={
-                        'border-bottom': '1px dashed black', 'cursor':'help', 'width': '85px', 'padding-bottom': '1px', 'margin-bottom': '5px'}, id='target'),
+                        'border-bottom': '1px dashed black', 'cursor': 'help', 'width': '85px', 'padding-bottom': '1px', 'margin-bottom': '5px'}, id='target'),
                     dbc.Tooltip(html.Div([
                         html.Li(
                             'Sum of Fitted Peaks: The overall '
@@ -291,7 +294,7 @@ def _layout():
             html.Div(id='state', style={'display': 'none'}),
             html.Div(id='areas-state', style={'display': 'none'}),
             html.Div(id='bin-width-state', style={'display': 'none'}),
-            html.Div(id='submit-state', style={'display': 'none'}),
+            html.Div(children=[], id='jobs', style={'display': 'none'}),
             html.Div(children=session_id,
                      id='session-id',
                      style={'display': 'none'}
@@ -304,15 +307,14 @@ def _layout():
                'padding': '10px', 'font-size': '16px'}
     )
 
-
     footer = html.Div(
         [
-            html.Span(['Copyright © 2019 ', 
-            html.A('Matthew Chatham', href='http://www.matthewchatham.com')], style={'top':'50%'})
+            html.Span(['Copyright © 2019 ',
+                       html.A('Matthew Chatham', href='http://www.matthewchatham.com')], style={'top': '50%'})
         ],
-        style={'width':'100%', 'height':'50px', 'text-align':'center', 'font-size':'14px', 'padding-top':'15px'}
+        style={'width': '100%', 'height': '50px', 'text-align': 'center',
+               'font-size': '14px', 'padding-top': '15px'}
     )
-
 
   #     <!-- Copyright -->
   # <div class="footer-copyright text-center py-3">© 2018 Copyright:
