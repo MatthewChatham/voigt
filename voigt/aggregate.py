@@ -37,23 +37,53 @@ def Voigt(x, center, amplitude, sigma, gamma):
     z = (x - center + 1j * gamma) / (sigma * np.sqrt(2))
     numerator = np.real(wofz(z))
     denominator = sigma * np.sqrt(2 * np.pi)
-    return numerator / denominator
+
+    if amplitude is not None:
+        res = amplitude * (numerator / denominator)
+    else:
+        res = numerator / denominator
+
+    return res
 
 
 def compute_bin_areas(bins, DATA):
     """
     Used when the user selects "Area" chart type.
     """
-    areas = [0] * len(bins)
-    for i, b in enumerate(bins):
+
+    def F(x):
+        vals = np.array([0]*len(x), ndmin=2)
+
         for idx, model in DATA.iterrows():
-            model_prefix = str.split(model.variable, '_')[0]
-            sigma = model[model_prefix + '_sigma']
-            gamma = model[model_prefix + '_gamma']
-            a, e = quad(lambda x: Voigt(x, center=model.value, amplitude=model.loc[
-                        model_prefix + '_amplitude'], sigma=sigma, gamma=gamma), b[0], b[1])
-            areas[i] += 0 if np.isnan(a) else a * \
-                model[model_prefix + '_amplitude']
+            prefix = model.variable[:model.variable.index('_')]
+            sigma = model.loc[prefix + '_sigma']
+            gamma = sigma
+            amplitude = model.loc[prefix + '_amplitude']
+            if 'nm' in prefix:
+                amplitude = -amplitude
+
+            res =  np.array(Voigt(x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
+            # print(vals, res)
+            vals = np.concatenate([vals, res], axis=0)
+        return vals.sum(axis=0)
+
+    x = pd.Series(list(np.linspace(30, 1000, 2 * (1000 - 30))))
+
+    y = F(x)
+
+    curve = pd.DataFrame({'x':x, 'y':y})
+    # print(curve)
+
+    areas = [0] * len(bins)
+
+    for i, b in enumerate(bins):
+        # approximation!
+        # print('Y:', y)
+        # print()
+        # print()
+        # print('X:', x)
+        # print('BOUNDS:',  /(b))
+        areas[i] = curve.loc[curve.x.between(*b), 'y'].sum()
     return areas
 
 
@@ -77,6 +107,7 @@ def composition(bounds, models, session_id, job_id, pos_neg='pos'):
         col = f'composition_mg_{pos_neg}'
 
     mask = (models.value >= bounds[0]) & (models.value <= bounds[1])
+    # treat all negative models the same regardless of partition
     models = models.loc[mask] if pos_neg == 'pos' else models
 
     bin_area = 0
@@ -88,6 +119,9 @@ def composition(bounds, models, session_id, job_id, pos_neg='pos'):
         sigma = model.loc[prefix + '_sigma']
         gamma = sigma
         amplitude = model.loc[prefix + '_amplitude']
+        if 'nm' in prefix:
+            amplitude = -amplitude
+
         params = dict(
             center=model.value,
             amplitude=amplitude,
@@ -172,9 +206,6 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
 
     def _is_monotonic_before_and_after_peak(y):
 
-
-
-
         monotonic = True
         peak_loc = np.argmax(y)
         before_peak = y[:peak_loc + 1]
@@ -242,23 +273,25 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
         return col, np.nan
 
     def F(x):
-        vals = list()
+        vals = np.array([0]*len(x), ndmin=2)
 
         for idx, model in models.iterrows():
             prefix = model.variable[:model.variable.index('_')]
             sigma = model.loc[prefix + '_sigma']
             gamma = sigma
             amplitude = model.loc[prefix + '_amplitude']
+            if 'nm' in prefix:
+                amplitude = -amplitude
 
-            vals.append(
-                Voigt(x, center=model.value,
-                      amplitude=amplitude, sigma=sigma, gamma=gamma))
-        return sum(vals)
+            res =  np.array(Voigt(x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
+            # print(vals, res)
+            vals = np.concatenate([vals, res], axis=0)
+        return vals.sum(axis=0)
 
     x = np.linspace(*bounds, 2 * int(bounds[1] - bounds[0])).tolist() \
         if pos_neg == 'pos' else np.linspace(30, 1000, 2 * (1000 - 30))
 
-    y = [F(_) for _ in x]
+    y = F(x)
 
     # save an image of the peak to the filesystem
     filename = models.filename.unique().tolist()[0]
@@ -401,6 +434,24 @@ def aggregate_single_file(partitions, models, session_id, job_id):
     res_dict['peak_integration_pct'] = models[
         'peak_integration'].unique().tolist()[0]
 
+    _peak_integration_pos = 0
+    _peak_integration_neg = 0
+    for idx, model in models.iterrows():
+        prefix = model.variable[:model.variable.index('_')]
+        sigma = model.loc[prefix + '_sigma']
+        gamma = sigma
+        amplitude = model.loc[prefix + '_amplitude']
+        if 'nm' in prefix:
+            amplitude = -amplitude
+            _peak_integration_neg += amplitude
+        else:
+            _peak_integration_pos += amplitude
+
+    res_dict['_peak_integration_pos'] = _peak_integration_pos
+    res_dict['_peak_integration_neg'] = _peak_integration_neg
+
+    print(res_dict)
+
     return res_dict
 
 
@@ -434,10 +485,13 @@ def generate_output_file(splits, models, session_id, job_id):
         'pos_chi_square',
         'pos_reduced_chi_square',
         'mass_loss_pct',
-        'peak_integration_pct'
+        'peak_integration_pct',
+        '_peak_integration_neg',
+        '_peak_integration_pos',
     ]
     pos_cols = []
-    neg_cols = [c for c in res_df.columns if 'neg' in c]
+    neg_cols = [c for c in res_df.columns if 'neg' in c and c !=
+                '_peak_integration_neg']
 
     for p in partitions:
         for agg in AGGREGATIONS.keys():

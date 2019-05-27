@@ -15,7 +15,7 @@ import sqlite3
 from sqlalchemy import create_engine
 import time
 
-from voigt.drawing import countplot, curveplot, sumcurveplot, emptyplot
+from voigt.drawing import countplot, curveplot, sumcurveplot, emptyplot, areaplot
 from voigt.aggregate import generate_output_file
 from .extract import parse_file
 from .worker import conn
@@ -426,7 +426,7 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks,
 
     funcs = {
         'count': countplot,
-        # 'area': areaplot,
+        'area': areaplot,
         'curve': curveplot,
         'sumcurve': sumcurveplot
     }

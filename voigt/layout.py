@@ -99,7 +99,7 @@ def _layout():
                              'value': 'curve'},
                             {'label': 'Peak Histogram',
                              'value': 'count'},
-                            # {'label': 'Area Histogram', 'value': 'area'},
+                            {'label': 'Area Histogram', 'value': 'area'},
                         ],
                         value='sumcurve',
                         placeholder='Select chart type',

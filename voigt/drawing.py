@@ -164,6 +164,8 @@ def sumcurveplot(bin_width=50, shapes=[],
             sigma = model.loc[prefix + '_sigma']
             gamma = sigma
             amplitude = model.loc[prefix + '_amplitude']
+            if 'nm' in prefix:
+                amplitude = -amplitude
 
             res =  np.array(Voigt(x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
             # print(vals, res)
