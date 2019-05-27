@@ -151,8 +151,7 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
         input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
         # TODO concurrency? what if mutliple ppl use app at same time?
         if (jobs and jobs[-1] not in registry.get_job_ids()) or not jobs:
-            msg = dbc.Alert('Ready.', color='primary') if isdir(
-                input_dir) \
+            msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
                 else dbc.Alert('Upload some TGA files first!', color='warning')
             res = ('#', {'display': 'none'}, '#', {'display': 'none'}, msg)
         elif jobs and jobs[-1] in registry.get_job_ids():
