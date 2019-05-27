@@ -172,6 +172,9 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
 
     def _is_monotonic_before_and_after_peak(y):
 
+
+
+
         monotonic = True
         peak_loc = np.argmax(y)
         before_peak = y[:peak_loc + 1]
@@ -261,9 +264,17 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
     filename = models.filename.unique().tolist()[0]
     fn = f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png' \
         if pos_neg == 'pos' else f'{filename}_neg.png'
-    output_dir = join(BASE_DIR, 'output',
-                      f'output_{session_id}', f'job_{job_id}')
-    imagedir = join(output_dir, 'images')
+    session = join(BASE_DIR, 'output', f'output_{session_id}')
+    job = join(session, f'job_{job_id}')
+    imagedir = join(job, 'images')
+
+    if not isdir(session):
+        os.mkdir(session)
+    if not isdir(job):
+        os.mkdir(job)
+    if not isdir(imagedir):
+        os.mkdir(imagedir)
+
     pth = join(imagedir, fn)
     import matplotlib
     matplotlib.use('PS')
