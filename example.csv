@@ -1,0 +1,2 @@
+filename,mass_30_mg,mass_pct_950,loss_amorph_pct,pos_chi_square,pos_reduced_chi_square,mass_loss_pct,peak_integration_pct,_peak_integration_neg,_peak_integration_pos,composition_mg_pos_0_1000,peak_position_c_pos_0_1000,fwhm_c_pos_0_1000,composition_mg_neg,peak_position_c_neg,fwhm_c_neg
+fit_2018-10-18_S2.txt,2.314,30.903405358686253,-0.01,0.04652354,0.00014141,69.1,71.35880756954641,0.0,73.32481474,73.32481474,657.308478088289,,0.0,,

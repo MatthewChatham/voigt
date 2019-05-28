@@ -6,6 +6,7 @@ test.py
 __pycache__/
 build
 *.csv
+!example.csv
 dist
 *.spec
 test_input/

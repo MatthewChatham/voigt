@@ -17,6 +17,28 @@ wapp_tooltiptext = [html.Pre(x) for x in str.split(tmp, '\n') if '#' not in x]
 tmp = inspect.getsource(composition)
 comp_tooltiptext = [html.Pre(x) for x in str.split(tmp, '\n') if '#' not in x]
 
+schema = [html.Li(_) for _ in [
+    'filename',
+    'mass_30_mg: the mass in mg at 30 C',
+    'mass_pct_950: the percentage of mass remaining at 950 C',
+    'loss_amorph_pct: percent loss to amorphous material',
+    'pos_chi_square: chi-square of positive models',
+    'pos_reduced_chi_square',
+    'mass_loss_pct: percent of mass lost (100 - mass_pct_950)',
+    'peak_integration_pct: integration of all peaks computed by fitting program',
+    '_peak_integration_neg: integration of negative peaks by this app',
+    '_peak_integration_pos: integration of positive peaks by this app (compare to peak_integration_pct)',
+    'composition_mg_pos_0_1000: composition of default region (0,1000)',
+    'peak_position_c_pos_0_1000: weighted-average peak position of default region (0,1000)',
+    'fwhm_c_pos_0_1000: full-width half max of default region (0,1000)',
+    'composition_mg_neg: mass (integral) in mg of negative peaks',
+    'peak_position_c_neg: weighted-average peak position of negative peaks',
+    'fwhm_c_neg: full-width half max of negative peaks'
+]]
+
+
+index_tooltip = [html.Li('E.g., blah')]
+
 INSTRUCTIONS = '''
                     Enter a bin width, then select up to 10 partitions.
                     When you're done, click "Generate Output File".
@@ -236,30 +258,17 @@ def _layout():
 
                         html.H3('Schema of output file'),
                         html.Hr(),
-                        html.P(
-                            'The columns of the output file fall into the following categories:'),
-
-
+                        # html.P('Each record'),
                         dbc.ListGroup([
-
-
-                            dbc.ListGroupItem(
-                                'Index: filename (each row corresponds to one TGA file)'),
-                            dbc.ListGroupItem(
-                                'TGA results: Overall results and positive '
-                                'fit statistics. Consists of mass_30_mg, mass_950_mg, '
-                                'loss_amorph_pct, pos_chi_square, pos_reduced_chi_square, '
-                                'mass_loss_pct, peak_integration_pct'),
-                            dbc.ListGroupItem(
-                                'Positive peak aggregates for each partition '
-                                'region. Consists of columns of form '
-                                '`[aggregate]_pos_lowerbound_upperbound`.'),
-                            dbc.ListGroupItem(
-                                'Negative peak aggregates, colums of form `[aggregate]_neg`.'),
-
-
+                            dbc.ListGroupItem([
+                                html.Span('Click to view columns. Each row is a file.', id='collapse-button4', style={'cursor': 'pointer'}),
+                                dbc.Collapse(
+                                    dbc.Card(dbc.CardBody(schema), style={
+                                             'margin': '10px'}),
+                                    id="collapse4",
+                                ),
+                            ], action=True),
                         ])
-
 
 
 

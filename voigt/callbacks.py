@@ -200,6 +200,48 @@ def toggle_collapse3(n, is_open):
         return not is_open
     return is_open
 
+@app.callback(
+    Output("collapse4", "is_open"),
+    [Input("collapse-button4", "n_clicks")],
+    [State("collapse4", "is_open")],
+)
+def toggle_collapse4(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
+@app.callback(
+    Output("collapse5", "is_open"),
+    [Input("collapse-button5", "n_clicks")],
+    [State("collapse5", "is_open")],
+)
+def toggle_collapse5(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("collapse6", "is_open"),
+    [Input("collapse-button6", "n_clicks")],
+    [State("collapse6", "is_open")],
+)
+def toggle_collapse6(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
+@app.callback(
+    Output("collapse7", "is_open"),
+    [Input("collapse-button7", "n_clicks")],
+    [State("collapse7", "is_open")],
+)
+def toggle_collapse7(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
 
 @app.callback(
     Output('files', 'options'),
