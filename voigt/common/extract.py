@@ -1,3 +1,6 @@
+"""
+Functions for parsing Voigt models from uploaded .txt files.
+"""
 from .patterns import result_patterns, fit_patterns, param_patterns
 
 import os

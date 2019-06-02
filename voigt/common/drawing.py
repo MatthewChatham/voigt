@@ -1,3 +1,6 @@
+"""
+Plotly plotting functions.
+"""
 import plotly.graph_objs as go
 from .aggregate import compute_bin_areas, Voigt
 import numpy as np

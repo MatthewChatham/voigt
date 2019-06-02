@@ -1,3 +1,6 @@
+"""
+Regex patterns for parsing data from uploaded .txt files.
+"""
 import re
 
 # TGA result patterns
