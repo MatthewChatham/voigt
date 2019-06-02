@@ -1,0 +1,17 @@
+altgraph==0.16.1
+asteval==0.9.13
+future==0.17.0
+lmfit==0.9.11
+macholib==1.11
+numpy==1.15.3
+#+mkl
+pandas==0.23.4
+patsy==0.5.1
+pefile==2018.8.8
+python-dateutil==2.7.5
+pytz==2018.7
+pywin32-ctypes==0.2.0
+scipy==1.1.0
+six==1.11.0
+statsmodels==0.9.0
+uncertainties==3.0.3

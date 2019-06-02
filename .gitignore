@@ -1,6 +1,7 @@
 .DS_Store
 .ipynb_checkpoints/
 *.pdf
+!Installation and use.pdf
 *.ipynb
 test.py
 __pycache__/
@@ -14,6 +15,8 @@ tmp.txt
 *.egg-info/
 *.png
 *.txt
+!requirements.txt
+!params_file.txt
 *.db
 output/output*
 .aws
