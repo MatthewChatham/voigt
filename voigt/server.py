@@ -1,7 +1,9 @@
+"""
+Creating the app in this file (instead of app.py)
+allows us to separate callbacks from layout.
+"""
 import dash
 import dash_bootstrap_components as dbc
-from sqlalchemy import create_engine
-import sqlite3
 import os
 
 if os.environ.get('STACK'):
@@ -13,15 +15,10 @@ else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.BOOTSTRAP]
+external_stylesheets = [
+    'https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.BOOTSTRAP]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app.config['suppress_callback_exceptions'] = True
-app.scripts.config.serve_locally=True
-
-# app.server.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-# db = SQLAlchemy(app.server)
-
-# dbconn = create_engine(DATABASE_URL) if os.environ.get(
-#     'STACK') else sqlite3.connect('output.db')
+app.scripts.config.serve_locally = True
