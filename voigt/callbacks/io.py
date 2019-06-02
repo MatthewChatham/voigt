@@ -1,3 +1,6 @@
+"""
+Callbacks for upload and download (I/O, Input/Output).
+"""
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -14,10 +17,10 @@ from urllib.parse import quote
 import sqlite3
 from sqlalchemy import create_engine
 
-from ..extract import parse_file
+from ..common.extract import parse_file
 from ..worker import conn
 from ..server import app
-from ..amazon import get_s3
+from ..common.amazon import get_s3
 
 from rq import Queue
 from rq.registry import StartedJobRegistry
@@ -35,14 +38,16 @@ else:
 q = Queue(connection=conn)
 
 
-@app.callback(Output('output-data-upload', 'children'),
-              [Input('upload-data', 'contents')],
-              [State('upload-data', 'filename'),
-               State('upload-data', 'last_modified'),
-               State('session-id', 'children'),
-               State('jobs', 'children')
-               ]
-              )
+@app.callback(
+    Output('output-data-upload', 'children'),
+    [Input('upload-data', 'contents')],
+    [
+        State('upload-data', 'filename'),
+        State('upload-data', 'last_modified'),
+        State('session-id', 'children'),
+        State('jobs', 'children')
+    ]
+)
 def upload(list_of_contents, list_of_names, list_of_dates, session_id, job_id):
     """
     Takes uploaded .txt files as input and writes them to disk.

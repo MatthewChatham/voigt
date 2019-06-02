@@ -1,3 +1,6 @@
+"""
+Callbacks for chart and chart controls/feedback.
+"""
 import os
 import json
 from rq import Queue
@@ -6,8 +9,8 @@ from dash.dependencies import Input, Output, State
 
 from ..worker import conn
 from ..server import app
-from ..extract import read_input
-from ..drawing import countplot, areaplot, curveplot, sumcurveplot, emptyplot
+from ..common.extract import read_input
+from ..common.drawing import countplot, areaplot, curveplot, sumcurveplot, emptyplot
 
 if os.environ.get('STACK'):
     print('RUNNING ON HEROKU')

@@ -1,3 +1,6 @@
+"""
+Callbacks that control opening/closing of collapsable list items.
+"""
 import os
 from rq import Queue
 from sqlalchemy import create_engine
@@ -58,39 +61,6 @@ def toggle_collapse3(n, is_open):
     [State("collapse4", "is_open")],
 )
 def toggle_collapse4(n, is_open):
-    if n:
-        return not is_open
-    return is_open
-
-
-@app.callback(
-    Output("collapse5", "is_open"),
-    [Input("collapse-button5", "n_clicks")],
-    [State("collapse5", "is_open")],
-)
-def toggle_collapse5(n, is_open):
-    if n:
-        return not is_open
-    return is_open
-
-
-@app.callback(
-    Output("collapse6", "is_open"),
-    [Input("collapse-button6", "n_clicks")],
-    [State("collapse6", "is_open")],
-)
-def toggle_collapse6(n, is_open):
-    if n:
-        return not is_open
-    return is_open
-
-
-@app.callback(
-    Output("collapse7", "is_open"),
-    [Input("collapse-button7", "n_clicks")],
-    [State("collapse7", "is_open")],
-)
-def toggle_collapse7(n, is_open):
     if n:
         return not is_open
     return is_open

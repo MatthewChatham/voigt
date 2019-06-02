@@ -1,3 +1,6 @@
+"""
+Hidden-div session state callbacks.
+"""
 import os
 import json
 from rq import Queue

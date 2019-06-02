@@ -1,3 +1,6 @@
+"""
+Submit button callback.
+"""
 import os
 import time
 import json
@@ -7,10 +10,10 @@ from sqlalchemy import create_engine
 from rq.registry import StartedJobRegistry
 from dash.dependencies import Input, Output, State
 
-from voigt.aggregate import generate_output_file
+from ..common.aggregate import generate_output_file
 from ..worker import conn
 from ..server import app
-from ..extract import read_input
+from ..common.extract import read_input
 
 if os.environ.get('STACK'):
     print('RUNNING ON HEROKU')
