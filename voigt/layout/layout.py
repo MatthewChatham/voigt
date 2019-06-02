@@ -297,11 +297,69 @@ step4 = [html.H1('Step 4: Generate File', style={'margin-left': '10px'}),
 footer = html.Div(
     [
         html.Span(['Copyright © 2019 ',
-                   html.A('Matthew Chatham', href='http://www.matthewchatham.com')], style={'top': '50%'})
+                   html.A('Matthew Chatham', href='https://www.linkedin.com/in/matthewchatham/', target="_blank")], style={'top': '50%'})
     ],
     style={'width': '100%', 'height': '50px', 'text-align': 'center',
            'font-size': '14px', 'padding-top': '15px'}
 )
+
+fitting = [
+
+    html.H1("Step 1: Set Fit Parameters", style={'margin-left': '10px'}),
+    # negative peaks
+    dcc.Checklist(
+        options=[
+            {'label': 'Negative peaks', 'value': 'neg'},
+        ],
+        values=[]
+    ),
+    # Temperature range to bound negative curve fitting
+    dcc.RangeSlider(
+        count=1,
+        min=30,
+        max=1000,
+        step=1,
+        value=[30, 1000]
+    ),
+    # Temperature range to bound positive curve fitting
+    dcc.RangeSlider(
+        count=1,
+        min=30,
+        max=1000,
+        step=1,
+        value=[30, 1000]
+    ),
+    # max peak num
+    dcc.Slider(min=1, max=20, step=1, value=10),
+    # mass defect warning
+    dcc.Slider(min=0, max=100, step=1, value=10),
+    # Temperature to calculate mass loss from
+    dcc.Slider(min=30, max=1000, step=1, value=60),
+    # Temperature to calculate mass loss to
+    dcc.Slider(min=30, max=1000, step=1, value=950),
+    # run start temp
+    dcc.Input(min=30, max=1000, step=1, value=60),
+    # file format
+    dcc.Dropdown(options=[{'label': 'Q500', 'value': 'Q500'}, {'label': 'DMSM', 'value': 'DMSM'
+        }], value='Q500'),
+    # amorphous carbon temperature
+    dcc.Slider(min=30, max=1000, step=1, value=450),
+
+
+    html.Hr(),
+]
+
+
+# negative peaks: no
+# Temperature range to bound negative curve fitting: None
+# Temperature range to bound positive curve fitting: full
+# max peak num: 10
+# mass defect warning: 10
+# Temperature to calculate mass loss from: 60
+# Temperature to calculate mass loss to: 950
+# run start temp: 60
+# file format: Q500/DMSM
+# amorphous carbon temperature: 450
 
 
 def _layout():
@@ -319,12 +377,15 @@ def _layout():
                       style={'display': 'none'}
                       ), ]
 
-    body = dbc.Container(step1 + step2 + step3 + step4 + state,
-
-                         className="mt-4",
-                         style={'background-color': '#e8eaf6',
-                                'padding': '10px', 'font-size': '16px'}
-                         )
+    body = dbc.Container([
+        dcc.Tabs([
+            dcc.Tab(step1 + step2 + step3 + step4, label='Analysis'),
+            dcc.Tab(fitting, label='Fitting'),
+        ], style={'margin': '0 0 10px 0'})] + state,
+        className="mt-4",
+        style={'background-color': '#e8eaf6',
+               'padding': '10px', 'font-size': '16px', 'min-height': '250px'}
+    )
 
     return html.Div([body, footer])
 
