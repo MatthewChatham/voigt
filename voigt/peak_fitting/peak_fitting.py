@@ -630,7 +630,7 @@ def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peak
                 aws_secret_access_key=AWS_SECRET)
 
 
-def main(params_file_path, fnames=None, data_=None, input_dir=None, session_id=None, job_id=None):
+def main(params_file_path, fnames=None, data_=None, input_dir=None, session_id=None, job_id=None, input_params=None):
 
     mass_loss = None
     run_start_temp = None
@@ -647,7 +647,8 @@ def main(params_file_path, fnames=None, data_=None, input_dir=None, session_id=N
     # else:
 
     print('parsing params file')
-    input_params = parse_params(params_file_path)
+    if input_params is None:
+        input_params = parse_params(params_file_path)
 
     ### process params values ###
     try:

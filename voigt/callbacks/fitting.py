@@ -269,7 +269,8 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
                     data,
                     input_dir,
                     session_id,
-                    fit_job_id),
+                    fit_job_id,
+                    parse_params(params_file_path)),
               job_id=fit_job_id, job_timeout=1000,
               )
     fit_jobs.append(fit_job_id)
