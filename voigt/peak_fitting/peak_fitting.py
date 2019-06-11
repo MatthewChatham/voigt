@@ -646,8 +646,9 @@ def main(params_file_path, fnames=None, data_=None, input_dir=None, session_id=N
     #     exit(0)
     # else:
 
-    print('parsing params file')
     if input_params is None:
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print('parsing params file')
         input_params = parse_params(params_file_path)
 
     ### process params values ###
