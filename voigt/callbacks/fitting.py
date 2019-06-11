@@ -15,7 +15,7 @@ import json
 
 from ..worker import conn
 from ..server import app
-from ..peak_fitting import main, params, read_data
+from ..peak_fitting import main, params, read_data, parse_params
 from ..common.amazon import get_s3
 
 from rq import Queue
@@ -122,7 +122,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
 
         # already downloaded results
         if len(os.listdir(outputdir)) > 0:
-            if not isfile(join(outputdir, 'results.zip')):
+            if not isfile(join(outputdir, f'job_{fit_jobs[-1]}.zip')):
                 tmp = shutil.make_archive(outputdir, 'zip', outputdir)
                 print(f'made archive {tmp}')
             res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', {},
