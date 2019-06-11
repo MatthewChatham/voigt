@@ -265,12 +265,12 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
     # TODO : distinguish fit job IDs from analysis job IDs
     q.enqueue(main,
               args=(params_file_path,
+                    parse_params(params_file_path),
                     fnames,
                     data,
                     input_dir,
                     session_id,
-                    fit_job_id,
-                    parse_params(params_file_path)),
+                    fit_job_id,),
               job_id=fit_job_id, job_timeout=1000,
               )
     fit_jobs.append(fit_job_id)

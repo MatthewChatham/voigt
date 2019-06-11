@@ -630,12 +630,12 @@ def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peak
                 aws_secret_access_key=AWS_SECRET)
 
 
-def main(params_file_path, fnames=None, data_=None, input_dir=None, session_id=None, job_id=None, input_params=None):
+def main(params_file_path, input_params, fnames=None, data_=None, input_dir=None, session_id=None, job_id=None):
 
     mass_loss = None
     run_start_temp = None
     neg_spec = None
-    input_params = None
+    # input_params = None
     fit_warnings = None
 
     # p_name = glob.glob('params_file.txt')
@@ -803,10 +803,10 @@ def main(params_file_path, fnames=None, data_=None, input_dir=None, session_id=N
         around_max = np.where(
             (temp > fit_range[1] - 1) & (temp < fit_range[1] + 1))
         print('!!!')
-        print(temp.tolist())
-        print(fit_range)
+        # print(temp.tolist())
+        # print(fit_range)
         mass_at_max = np.mean(mass[around_max])
-        print(mass[around_max])
+        # print(mass[around_max])
         temp_at_max = np.mean(temp[around_max])
         temp = temp[in_range]
         mass = mass[in_range]
