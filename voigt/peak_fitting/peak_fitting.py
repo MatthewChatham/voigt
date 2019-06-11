@@ -16,7 +16,7 @@ if os.environ.get('STACK'):
     env = 'Heroku'
     BASE_DIR = '/app'
     DATABASE_URL = os.environ['DATABASE_URL']
-    eng = create_engine(DATABASE_URL)
+    # eng = create_engine(DATABASE_URL)
 else:
     env = 'Dev'
     BASE_DIR = '/Users/matthew/freelance/voigt'
