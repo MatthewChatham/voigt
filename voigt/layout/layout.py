@@ -6,8 +6,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 
-from analysis import analysis
-from fitting import fitting
+from .analysis import analysis
+from .fitting import fitting
 
 
 footer = html.Div(
@@ -33,6 +33,7 @@ def _layout():
              html.Div(id='areas-state', style={'display': 'none'}),
              html.Div(id='bin-width-state', style={'display': 'none'}),
              html.Div(children=[], id='jobs', style={'display': 'none'}),
+             html.Div(children=[], id='fit-jobs', style={'display': 'none'}),
              html.Div(children=session_id,
                       id='session-id',
                       style={'display': 'none'}
@@ -40,8 +41,9 @@ def _layout():
 
     body = dbc.Container([
         dcc.Tabs([
-            dcc.Tab(analysis, label='Analysis'),
             dcc.Tab(fitting, label='Fitting'),
+            dcc.Tab(analysis, label='Analysis'),
+
         ], style={'margin': '0 0 10px 0'})] + state,
         className="mt-4",
         style={'background-color': '#e8eaf6',

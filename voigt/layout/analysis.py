@@ -28,9 +28,11 @@ schema = [html.Li(_) for _ in [
     'peak_integration_pct: integration'
     ' of all peaks computed by fitting program',
     '_peak_integration_neg: integration of negative peaks by this app',
-    '_peak_integration_pos: integration of positive peaks by this app (compare to peak_integration_pct)',
+    '_peak_integration_pos: integration of '
+    'positive peaks by this app (compare to peak_integration_pct)',
     'composition_mg_pos_0_1000: composition of default region (0,1000)',
-    'peak_position_c_pos_0_1000: weighted-average peak position of default region (0,1000)',
+    'peak_position_c_pos_0_1000: weighted-average '
+    'peak position of default region (0,1000)',
     'fwhm_c_pos_0_1000: full-width half max of default region (0,1000)',
     'composition_mg_neg: mass (integral) in mg of negative peaks',
     'peak_position_c_neg: weighted-average peak position of negative peaks',
@@ -45,7 +47,7 @@ INSTRUCTIONS = '''
                     When you're done, click "Generate Output File".
                 '''
 
-step1 = [html.H1("Step 1: Upload TGA Files", style={'margin-left': '10px'}),
+step1 = [html.H1("Step 1: Upload Fitted Peaks", style={'margin-left': '10px'}),
          dbc.Row(
     [
         dbc.Col(

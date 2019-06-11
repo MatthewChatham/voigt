@@ -297,7 +297,7 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
     filename = models.filename.unique().tolist()[0]
     fn = f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png' \
         if pos_neg == 'pos' else f'{filename}_neg.png'
-    session = join(BASE_DIR, 'output', f'output_{session_id}')
+    session = join(BASE_DIR, 'output', f'output_{session_id}', 'analysis')
     job = join(session, f'job_{job_id}')
     imagedir = join(job, 'images')
 

@@ -29,7 +29,7 @@ def read_input(session_id):
     models = pd.DataFrame()
 
     # Get all text files in BASE_DIR/input/
-    input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+    input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'analysis')
 
     if not isdir(input_dir):
         return models
@@ -75,6 +75,7 @@ def parse_file(path):
 
         # Save TGA results to `results`
         for k, v in result_patterns.items():
+            print(k)
             results[k] = float(v.search(txt).group(1))
 
         # Extract info for any negative peaks

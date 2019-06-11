@@ -21,6 +21,7 @@ from ..common.extract import parse_file
 from ..worker import conn
 from ..server import app
 from ..common.amazon import get_s3
+from ..peak_fitting import read_data
 
 from rq import Queue
 from rq.registry import StartedJobRegistry
@@ -48,7 +49,7 @@ q = Queue(connection=conn)
         State('jobs', 'children')
     ]
 )
-def upload(list_of_contents, list_of_names, list_of_dates, session_id, job_id):
+def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, job_id):
     """
     Takes uploaded .txt files as input and writes them to disk.
 
@@ -63,34 +64,48 @@ def upload(list_of_contents, list_of_names, list_of_dates, session_id, job_id):
 
     # make a subdirectory for this session if one doesn't exist
     input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
-    if not isdir(input_dir):
-        try:
-            os.mkdir(input_dir)
-        except FileExistsError:
-            pass
+    try:
+        os.mkdir(input_dir)
+    except FileExistsError:
+        pass
+
+    try:
+        os.mkdir(join(input_dir, 'analysis'))
+    except FileExistsError:
+        pass
 
     # Create an output directory for this session if it doesn't exist
     output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
-    if not isdir(output_dir):
-        try:
-            os.mkdir(output_dir)
-            os.mkdir(join(output_dir, 'images'))
-        except FileExistsError:
-            pass
+    try:
+        os.mkdir(output_dir)
+    except FileExistsError:
+        pass
+
+    try:
+        os.mkdir(join(output_dir, 'analysis'))
+    except FileExistsError:
+        pass
+
+
+    try:
+        os.mkdir(join(output_dir, 'analysis', 'images'))
+    except FileExistsError:
+        pass
 
     def _clean_input_dir():
         """
         Clean the input directory by removing every existing file.
         """
-        for existing_file in os.listdir(input_dir):
+        for existing_file in os.listdir(join(input_dir, 'analysis')):
             if existing_file != '.hold':
-                os.remove(join(input_dir, existing_file))
+                os.remove(join(input_dir, 'analysis', existing_file))
 
     try:
 
         # If the user isn't uplaoding anything and
         # hasn't uploaded anything, ask them to do so.
-        if list_of_contents is None and len(os.listdir(input_dir)) == 0:
+        # print(os.listdir(input_dir))
+        if list_of_contents is None and len(os.listdir(join(input_dir, 'analysis'))) == 0:
             return 'Please upload some files.'
 
         # if the user is uploading something, first clean the input directory,
@@ -122,13 +137,137 @@ def upload(list_of_contents, list_of_names, list_of_dates, session_id, job_id):
                     raise Exception(f'Error uploading file {list_of_names[i]}.\
                      Please check file format and try again.')
 
-                with open(join(input_dir, list_of_names[i]), 'w') as f:
+                with open(join(input_dir, 'analysis', list_of_names[i]), 'w') as f:
                     f.write(s)
 
                 try:
-                    parse_file(join(input_dir, list_of_names[i]))
-                except Exception:
-                    raise Exception(f'Cannot parse file {list_of_names[i]}')
+                    parse_file(join(input_dir, 'analysis', list_of_names[i]))
+                except Exception as e:
+                    import traceback; traceback.print_exc()
+                    raise Exception(f'Cannot parse file {list_of_names[i]}: {e}')
+
+                written.append(list_of_names[i])
+
+            res = [html.Li(x) for x in written]
+            res.insert(0, html.P(f'Success! {len(written)} \
+                .txt files were uploaded.'))
+            return res
+
+    except Exception as e:
+        # If any of the files raise an error (wrong extension,
+        # decoding error, error parsing into models),
+        # then print the error message.
+        _clean_input_dir()
+        return f'An error occurred while uploading files: {e}'
+
+
+@app.callback(
+    Output('output-data-upload-fitting', 'children'),
+    [Input('upload-data-fitting', 'contents')],
+    [
+        State('upload-data-fitting', 'filename'),
+        State('upload-data-fitting', 'last_modified'),
+        State('session-id', 'children'),
+        State('jobs', 'children'),
+        State('file-format', 'value')
+    ]
+)
+def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, job_id, format):
+    """
+    Takes uploaded .txt files as input and writes them to disk.
+
+    Provides feedback to the user.
+
+    """
+
+    print('UPLOAD')
+
+    if session_id is not None and list_of_contents is None:
+        print(f'Running in session {session_id}')
+
+    # make a subdirectory for this session if one doesn't exist
+    input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+    try:
+        os.mkdir(input_dir)
+        os.mkdir(join(input_dir, 'fitting'))
+    except FileExistsError:
+        pass
+
+    try:
+        os.mkdir(join(input_dir, 'fitting'))
+    except FileExistsError:
+        pass
+
+    # Create an output directory for this session if it doesn't exist
+    output_dir = join(BASE_DIR, 'output', f'output_{session_id}')
+    try:
+        os.mkdir(output_dir)
+    except FileExistsError:
+        pass
+
+    try:
+        os.mkdir(join(output_dir, 'fitting'))
+        os.mkdir(join(output_dir, 'fitting', 'images'))
+    except FileExistsError:
+        pass
+
+    try:
+        os.mkdir(join(output_dir, 'fitting', 'images'))
+    except FileExistsError:
+        pass
+
+    def _clean_input_dir():
+        """
+        Clean the input directory by removing every existing file.
+        """
+        for existing_file in os.listdir(join(input_dir, 'fitting')):
+            if existing_file != '.hold':
+                os.remove(join(input_dir, 'fitting', existing_file))
+
+    try:
+
+        # If the user isn't uplaoding anything and
+        # hasn't uploaded anything, ask them to do so.
+        if list_of_contents is None and len(os.listdir(join(input_dir, 'fitting'))) == 0:
+            return 'Please upload some files.'
+
+        # if the user is uploading something, first clean the input directory,
+        # then write the uploaded files to BASE_DIR/input/input_{session_id}
+        if list_of_contents:
+
+            _clean_input_dir()
+
+            # Save successfully uploaded filenames here
+            written = list()
+
+            # Write uploaded files to BASE_DIR/input/input_{session_id}
+            # If any of the files do not end in .txt,
+            # or cannot be decoded properly, or cannot be parsed
+            # into Voigt models, then clean the input directory and print
+            # the error message. Otherwise, show a bullet list of files
+            # uploaded to the input directory.
+
+            for i, c in enumerate(list_of_contents):
+
+                if not list_of_names[i].endswith('.txt'):
+                    raise Exception(f'File {list_of_names[i]} must be .txt')
+
+                s = c.split(',')[1]
+
+                try:
+                    s = base64.b64decode(s).decode('utf-16')
+                except UnicodeDecodeError as e:
+                    print(e)
+                    raise Exception(f'Error uploading file {list_of_names[i]}.\
+                     Please check file format and try again.')
+
+                with open(join(input_dir, 'fitting', list_of_names[i]), 'w') as f:
+                    f.write(s)
+
+                try:
+                    read_data(join(input_dir, 'fitting', list_of_names[i]), format)
+                except Exception as e:
+                    raise Exception(f'Cannot parse file {list_of_names[i]}: {e}')
 
                 written.append(list_of_names[i])
 
@@ -192,8 +331,9 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
         csv_string = df.to_csv(index=False)
 
         outputdir = join(BASE_DIR, 'output',
-                         f'output_{session_id}', f'job_{jobs[-1]}')
+                         f'output_{session_id}', 'analysis', f'job_{jobs[-1]}')
         imagedir = join(outputdir, 'images')
+        
         # don't download if imagedir already full
         # download s3 images
         if len(os.listdir(imagedir)) > 0:
@@ -250,11 +390,11 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
                    dbc.Alert('Your results are ready!', color='success'))
     else:
         registry = StartedJobRegistry('default', connection=conn)
-        input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+        input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'analysis')
         # TODO concurrency? what if mutliple ppl use app at same time?
         if (jobs and jobs[-1] not in registry.get_job_ids()) or not jobs:
             msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
-                else dbc.Alert('Upload some TGA files first!', color='warning')
+                else dbc.Alert('Upload some peak files first!', color='warning')
             res = ('#', {'display': 'none'}, '#', {'display': 'none'}, msg)
         elif jobs and jobs[-1] in registry.get_job_ids():
             res = ('#', {'display': 'none'}, '#', {'display': 'none'},
@@ -271,14 +411,28 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
 
 
 @app.server.route('/dash/download')
-def download_csv():
+def download_img():
     session_id = flask.request.args.get('session_id')
     job_id = flask.request.args.get('job_id')
-    f = join(BASE_DIR, 'output', f'output_{session_id}', f'job_{job_id}', 'images.zip')
+    f = join(BASE_DIR, 'output', f'output_{session_id}', 'analysis', f'job_{job_id}', 'images.zip')
     if isfile(f):
         return send_file(f,
                          mimetype='application/zip',
                          attachment_filename=f'images_{session_id}.zip',
+                         as_attachment=True
+                         )
+    else:
+        print(f'File not found: {f}')
+
+@app.server.route('/dash/download-fit')
+def download_fitting():
+    session_id = flask.request.args.get('session_id')
+    job_id = flask.request.args.get('job_id')
+    f = join(BASE_DIR, 'output', f'output_{session_id}', 'fitting', f'job_{job_id}.zip')
+    if isfile(f):
+        return send_file(f,
+                         mimetype='application/zip',
+                         attachment_filename=f'fitting_{session_id}.zip',
                          as_attachment=True
                          )
     else:
