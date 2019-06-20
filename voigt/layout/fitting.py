@@ -6,7 +6,7 @@ import dash_html_components as html
 import dash_bootstrap_components as dbc
 
 step1 = [
-    html.H1('Step 1: Upload TGA Measurements'),
+    html.H1('Step 1: Upload TGA Measurements', style={'margin-left': '10px'}),
 
     dbc.Row(
         [
@@ -48,106 +48,132 @@ step1 = [
                            'overflow': 'auto',
                            'max-height': '600px',
                            'resize': 'vertical'})),
+                dbc.Button('Parse files and refresh chart & options',
+                       id='tga-parse-data-and-refresh-chart',
+                       color='primary',
+                       style={'margin-top': '5px', 'font-size': '14px'})
             ], style={'padding': '10px'}),
 
-        ], style={'margin': '10px'}),
+        ], style={'margin': '25px'}),
+
+    dbc.Row([dbc.Col([
+        dcc.Dropdown(id='tga-plot-dropdown', options=[], style={
+                     'width': '250px', 'margin-bottom': '15px'}, placeholder='Select a file.'),
+        dcc.Graph(id='tga-plot')
+    ])], style={'margin': '25px'}),
 
     html.Hr(),
 ]
 
 step2 = [
-    html.H1('Step 2: Set Fit Parameters'),
+    html.H1('Step 2: Set Fit Parameters', style={'margin-left': '10px'}),
 
-    # negative peaks
-    dcc.Checklist(
-        options=[
-            {'label': 'Negative peaks', 'value': 'neg'},
-        ],
-        values=[], inputStyle={'margin-right': '5px'},
-        id='negative-peaks'
-    ),
+    dbc.Row([
 
-    # Temperature range to bound negative curve fitting
-    html.Div([
-        html.P(['Temperature range to bound', html.Strong(
-            ' negative '), 'curve fitting'], id='neg-range-values'),
-        dcc.RangeSlider(
+        dbc.Col([
 
-            min=30,
-            max=1000,
-            step=1,
-            value=[30, 1000],
-            dots=False,
-            marks={
-                30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
-                1000: {'label': '1000°C', 'style': {'color': '#f50'}}
-            },
-            id='neg-peak-slider',
-            updatemode='drag',
-        ),
-    ], style={'padding': '10px', 'width': '500px', 'margin-bottom': '5px'}, id='neg-peak-range'),
+            # negative peaks
+            dcc.Checklist(
+                options=[
+                    {'label': 'Negative peaks', 'value': 'neg'},
+                ],
+                values=[], inputStyle={'margin-right': '5px'},
+                id='negative-peaks'
+            ),
 
-    # Temperature range to bound positive curve fitting
-    html.Div([
-        html.P(['Temperature range to bound', html.Strong(
-            ' positive '), 'curve fitting'], id='pos-range-values'),
-        dcc.Checklist(
-            options=[
-                {'label': 'Full', 'value': 'full'},
-            ],
-            values=[], inputStyle={'margin-right': '5px'},
-            id='temp-range-pos-full'
-        ),
-        dcc.RangeSlider(
-            count=1,
-            min=30,
-            max=1000,
-            step=1,
-            value=[30, 1000],
-            marks={
-                30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
-                1000: {'label': '1000°C', 'style': {'color': '#f50'}}
-            },
-            updatemode='drag',
-            id='pos-peak-slider',
-            disabled=True
-        ),
-    ], style={'padding': '10px', 'width': '500px', 'margin-bottom': '5px'}),
+            # Temperature range to bound negative curve fitting
+            html.Div([
+                html.P(['Temperature range to bound', html.Strong(
+                    ' negative '), 'curve fitting'], id='neg-range-values'),
+                dcc.RangeSlider(
 
-    # max peak num
-    html.Div(['Max Peak Num: ', dcc.Input(
-        min=1, max=20, step=1, value=10, type='number', id='max-peak-num')]),
+                    min=30,
+                    max=1000,
+                    step=1,
+                    value=[30, 1000],
+                    dots=False,
+                    marks={
+                        30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
+                        1000: {'label': '1000°C', 'style': {'color': '#f50'}}
+                    },
+                    id='neg-peak-slider',
+                    updatemode='drag',
+                ),
+            ], style={'padding': '10px', 'width': '250px', 'margin-bottom': '5px'}, id='neg-peak-range'),
 
-    # mass defect warning
-    html.Div(['Mass Defect Warning: ', dcc.Input(
-        min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'), ]),
+            # Temperature range to bound positive curve fitting
+            html.Div([
+                html.P(['Temperature range to bound', html.Strong(
+                    ' positive '), 'curve fitting'], id='pos-range-values'),
+                dcc.Checklist(
+                    options=[
+                        {'label': 'Full', 'value': 'full'},
+                    ],
+                    values=[], inputStyle={'margin-right': '5px'},
+                    id='temp-range-pos-full'
+                ),
+                dcc.RangeSlider(
+                    count=1,
+                    min=30,
+                    max=1000,
+                    step=1,
+                    value=[30, 1000],
+                    marks={
+                        30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
+                        1000: {'label': '1000°C', 'style': {'color': '#f50'}}
+                    },
+                    updatemode='drag',
+                    id='pos-peak-slider',
+                    disabled=True
+                ),
+            ], style={'padding': '10px', 'width': '250px', 'margin-bottom': '5px'}),
 
-    # Temperature to calculate mass loss from
-    html.Div(['Temp to calculate mass loss from: ', dcc.Input(
-        min=30, max=1000, step=1, value=60, type='number', id='mass-loss-from-temp', disabled=True), ]),
+        ]),
 
-    # Temperature to calculate mass loss to
-    html.Div(['Temp to calculate mass loss to: ', dcc.Input(
-        min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=True), ]),
 
-    # run start temp
-    html.Div(['Run Start Temp: ', dcc.Input(
-        min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=True)]),
-    # file format
-    html.Div(['File Format: ', dcc.Dropdown(options=[
-        {'label': 'Q500/DMSM', 'value': 'Q500/DMSM'},
-        {'label': 'TGA 5500', 'value': 'TGA 5500'},
-        {'label': 'Just Temp and Mass', 'value': 'Just Temp and Mass'}
-    ], value='Q500/DMSM', style={'width': '150px', 'display': 'inline-block'}, id='file-format')]),
-    # amorphous carbon temperature
-    html.Div(['Amorphous Carbon Temperature: ', dcc.Input(
-        min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=True)]),
+        dbc.Col([
+            # max peak num
+            html.Div(['Max Peak Num: ', dcc.Input(
+                min=1, max=20, step=1, value=10, type='number', id='max-peak-num')]),
+
+            # mass defect warning
+            html.Div(['Mass Defect Warning: ', dcc.Input(
+                min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'), ]),
+
+            # Temperature to calculate mass loss from
+            html.Div(['Temp to calculate mass loss from: ', dcc.Input(
+                min=30, max=1000, step=1, value=60, type='number', id='mass-loss-from-temp', disabled=True), ]),
+
+        ]),
+
+        dbc.Col([
+            # Temperature to calculate mass loss to
+            html.Div(['Temp to calculate mass loss to: ', dcc.Input(
+                min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=True), ]),
+
+            # run start temp
+            html.Div(['Run Start Temp: ', dcc.Input(
+                min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=True)]),
+            # file format
+            html.Div(['File Format: ', dcc.Dropdown(options=[
+                {'label': 'Q500/DMSM', 'value': 'Q500/DMSM'},
+                {'label': 'TGA 5500', 'value': 'TGA 5500'},
+                {'label': 'Just Temp and Mass', 'value': 'Just Temp and Mass'}
+            ], value='Q500/DMSM', style={'width': '200px'}, id='file-format')]),
+            # amorphous carbon temperature
+            html.Div(['Amorphous Carbon Temperature: ', dcc.Input(
+                min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=True)]),
+
+
+        ])
+
+    ], style={'margin': '25px'}),
 
     html.Hr(),
 ]
 
 step3 = [
-    html.H1('Step 3: Run Peak-Fitting Routine'),
+    html.H1('Step 3: Run Peak-Fitting Routine', style={'margin-left': '10px'}),
 
     dbc.Row([
 
