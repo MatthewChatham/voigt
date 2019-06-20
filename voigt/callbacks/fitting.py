@@ -51,15 +51,15 @@ def toggle_neg_peak_range(neg_peaks, style):
 
 
 @app.callback(
-    Output('pos-peak-slider', 'disabled'),
+    [Output('pos-peak-slider', 'disabled'), Output('pos-peak-slider', 'value')],
     [Input('temp-range-pos-full', 'values')],
-    [State('pos-peak-slider', 'style')]
+    [State('pos-peak-slider', 'style'), State('pos-peak-slider', 'value')]
 )
-def toggle_neg_peak_range(full, style):
+def toggle_pos_peak_range(full, style, values):
     if len(full) == 0:
-        return False
+        return False, values
     else:
-        return True
+        return True, (30, 1000)
 
 
 @app.callback(
