@@ -1,1 +1,1 @@
-from . import submit, collapse, io, plot, state, fitting
+from . import submit, collapse, io, plot, state, fitting, tga_plot
