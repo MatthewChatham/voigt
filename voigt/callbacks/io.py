@@ -255,7 +255,16 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
                 s = c.split(',')[1]
 
                 try:
-                    s = base64.b64decode(s).decode('utf-16')
+
+                    s = base64.b64decode(s)
+                    import chardet
+                    encoding = chardet.detect(s)['encoding']
+                    if encoding == 'UTF-16':
+                        s = s.decode('utf-16')
+                    elif encoding == 'ascii':
+                        s = s.decode('utf-8')
+                    else:
+                        s = s.decode('utf-8')
                 except UnicodeDecodeError as e:
                     print(e)
                     raise Exception(f'Error uploading file {list_of_names[i]}.\
@@ -281,6 +290,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
         # decoding error, error parsing into models),
         # then print the error message.
         _clean_input_dir()
+        import traceback; traceback.print_exc()
         return f'An error occurred while uploading files: {e}'
 
 

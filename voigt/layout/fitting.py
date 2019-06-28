@@ -16,6 +16,13 @@ step1 = [
                                     remove input files. \
                                     Uploading multiple times will first \
                                     remove all existing files.'),
+                    # file format
+                    html.Div(['File Format: ', dcc.Dropdown(options=[
+                        {'label': 'Q500/DMSM', 'value': 'Q500/DMSM'},
+                        {'label': 'TGA 5500', 'value': 'TGA 5500'},
+                        {'label': 'Just Temp and Mass',
+                            'value': 'Just Temp and Mass'}
+                    ], value='Q500/DMSM', style={'width': '200px'}, id='file-format')]),
                     dcc.Upload(
                         id='upload-data-fitting',
                         children=html.Div([
@@ -49,9 +56,9 @@ step1 = [
                            'max-height': '600px',
                            'resize': 'vertical'})),
                 dbc.Button('Parse files and refresh chart & options',
-                       id='tga-parse-data-and-refresh-chart',
-                       color='primary',
-                       style={'margin-top': '5px', 'font-size': '14px'})
+                           id='tga-parse-data-and-refresh-chart',
+                           color='primary',
+                           style={'margin-top': '5px', 'font-size': '14px'})
             ], style={'padding': '10px'}),
 
         ], style={'margin': '25px'}),
@@ -154,12 +161,6 @@ step2 = [
             # run start temp
             html.Div(['Run Start Temp: ', dcc.Input(
                 min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=True)]),
-            # file format
-            html.Div(['File Format: ', dcc.Dropdown(options=[
-                {'label': 'Q500/DMSM', 'value': 'Q500/DMSM'},
-                {'label': 'TGA 5500', 'value': 'TGA 5500'},
-                {'label': 'Just Temp and Mass', 'value': 'Just Temp and Mass'}
-            ], value='Q500/DMSM', style={'width': '200px'}, id='file-format')]),
             # amorphous carbon temperature
             html.Div(['Amorphous Carbon Temperature: ', dcc.Input(
                 min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=True)]),

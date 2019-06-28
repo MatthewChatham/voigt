@@ -65,7 +65,7 @@ def read_data(fname, format):
         # a different hardcoded file format
 
         start_collecting = False
-        with open(fname, encoding='utf_16_le') as f:
+        with open(fname, encoding='utf_8') as f:
             for line in f:
                 if 'Size' in line:
                     mass_at_rt = float(line.split()[1])
@@ -82,7 +82,7 @@ def read_data(fname, format):
         # with the same windows encoding
         # temperature column 1
         # mass column 2
-        with open(fname, encoding='utf_16_le') as f:
+        with open(fname, encoding='utf_8') as f:
             for line in f:
                 row = line.split()
                 temp.append(float(row[0]))
