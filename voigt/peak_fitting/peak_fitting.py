@@ -1,15 +1,14 @@
 import os
-import glob
 import numpy as np
 from lmfit import models
 from scipy import signal
 from scipy import integrate
 from scipy.signal import savgol_filter
-import matplotlib
-matplotlib.use('PS')
-import matplotlib.pyplot as plt
 from os.path import join, basename
 import shutil
+
+from .read_data import read_data
+from .params import parse_params, parse_input_params
 
 if os.environ.get('STACK'):
     print('RUNNING ON HEROKU')
@@ -22,80 +21,319 @@ else:
     BASE_DIR = '/Users/matthew/freelance/voigt'
 
 
-def read_data(fname, format):
-    """
-    read in data and return numpy arrays of cols 2 and 3
-    (temperature and mass)
+if env == 'Dev':
+    import matplotlib
+    matplotlib.use('PS')
 
-    input: filename (str)
-    output: temperature (nparray), mass (nparray)
-    """
-    temp = []
-    mass = []
-    deriv = []
-    rt = 30
-    if format == "Q500/DMSM":
-        # hardcoded file format
+import matplotlib.pyplot as plt
 
-        start_collecting = False
-        # file encoding hardcoded for these files coming from the TGA on
-        # windows
-        with open(fname, encoding='utf_8') as f:
-            for line in f:
-                if 'Size' in line:
-                    # initial mass of the sample
-                    mass_at_rt = float(line.split()[1])
-                if start_collecting:
-                    row = line.split()
-                    #print(row, row[1], row[2])
-                    # save temperature and mass values
-                    # also derivative if available
-                    temp.append(float(row[1]))
-                    mass.append(float(row[2]))
-                    if len(row) == 6:
-                        deriv.append(float(row[-1]))
-                if 'StartOfData' in str(line).strip():
-                    start_collecting = True
 
-        if len(deriv) == 0:
-            return rt, mass_at_rt, np.asarray(temp), np.asarray(mass)
+class Worker():
+
+    def __init__(self, params_file_path, input_params, fnames=None, data_=None, input_dir=None, session_id=None, job_id=None):
+        self.mass_loss = None
+        self.run_start_temp = None
+        self.fit_warnings = None
+        self.job_id = job_id
+        self.session_id = session_id
+        self.params_file_path = params_file_path
+        self.data_ = data_
+        self.input_dir = input_dir
+
+        # parse parameters
+        try:
+            if input_params is None:
+                self.input_params = parse_params(params_file_path)
+            else:
+                self.input_params = input_params
+
+            (self.max_peak_num, self.run_start_temp, self.mass_defect_warning,
+                self.neg_range, self.negative_peak_lower_bound,
+                self.negative_peak_upper_bound, self.fit_range,
+                self.amorphous_carbon_temp, self.mass_loss, self.file_format,
+                self.negative_peaks_flag) = parse_input_params(input_params)
+        except Exception as e:
+            raise Exception(e)
+
+        # number of fit options if the mass defect difference threshold for fit
+        # quality is exceeded
+        self.mismatch_fit_number = 5
+
+        # number of times to fit for a given number of peaks
+        # the fitting algo is pretty good, but this can help avoid local minima
+        # at the cost of more running time
+        self.n_attempts = 2
+
+        if fnames is None:
+            self.flist = os.listdir(input_dir)
         else:
-            return rt, mass_at_rt, np.asarray(temp), np.asarray(mass), np.asarray(deriv)
-    elif format == "TGA 5500":
-        # a different hardcoded file format
+            self.flist = fnames
 
-        start_collecting = False
-        with open(fname, encoding='utf_8') as f:
-            for line in f:
-                if 'Size' in line:
-                    mass_at_rt = float(line.split()[1])
-                    # print(mass_at_rt)
-                if start_collecting:
-                    row = line.split()
-                    temp.append(float(row[1]))
-                    mass.append(float(row[2]))
-                if 'StartOfData' in str(line).strip():
-                    start_collecting = True
-        return rt, mass_at_rt, np.asarray(temp), np.asarray(mass)
-    elif format == "Just Temp and Mass":
-        # two column file format without headers
-        # with the same windows encoding
-        # temperature column 1
-        # mass column 2
-        with open(fname, encoding='utf_8') as f:
-            for line in f:
-                row = line.split()
-                temp.append(float(row[0]))
-                mass.append(float(row[1]))
-        rt = temp[0]
-        return rt, mass[0], np.asarray(temp), np.asarray(mass)
-    else:
-        raise Exception(f'Invalid file format: {format}')
+    def fit_file(self, i, fname):
+        neg_spec = None
 
+        print('Fitting : ', fname)
 
-def normalize_mass(mass, mass_at_rt):
-    """normalize the mass by its value at 30C"""
-    return mass / mass_at_rt * 100
+        # read in TGA data
+        pth = join(self.input_dir, fname)
+        data = read_data(
+            pth, self.file_format) if self.data_ is None else self.data_[i]
+        rt, mass_at_rt, temp, mass, deriv = data
+
+        # set any full bound values to the bounds of the data
+        self.fit_range[0] = max(-np.inf, temp[0])
+        self.fit_range[1] = min(np.inf, temp[-1])
+        self.neg_range[0] = max(-np.inf, temp[0])
+        self.neg_range[1] = min(np.inf, temp[-1])
+
+        self.fit_warnings = []
+
+        # get important mass and temperature values (averaging +/- 1 degree C)
+        in_range = np.where((temp >= self.fit_range[0]) & (
+            temp <= self.fit_range[1]))
+        around_max = np.where(
+            (temp > self.fit_range[1] - 1) &
+            (temp < self.fit_range[1] + 1)
+        )
+        mass_at_max = np.mean(mass[around_max])
+        temp_at_max = np.mean(temp[around_max])
+        temp = temp[in_range]
+        mass = mass[in_range]
+        around_run_start = np.where(
+            (temp > self.run_start_temp - 1) &
+            (temp < self.run_start_temp + 1)
+        )
+        mass_at_run_start = np.mean(mass[around_run_start])
+        around_amorphous_carbon = np.where(
+            (temp > self.amorphous_carbon_temp - 1) &
+            (temp < self.amorphous_carbon_temp)
+        )
+        mass_at_amorphous_carbon_temp = np.mean(mass[around_amorphous_carbon])
+        if len(deriv) > 0:
+            deriv = deriv[in_range]
+
+        # smoothing, etc.
+        stemp, sdmdt = preprocess(temp, mass, mass_at_rt)
+
+        # set initial fit values
+        model_array = []
+        spec_array = []
+        bic_array = []
+        model_param_array = []
+        min_bic = 10000
+        best_model_id = 0
+        model_id = 0
+        spec = {
+            'x': stemp[:-1],
+            'y': sdmdt[:-1],
+            'model': [
+            ]
+        }
+
+        # initial guess at fixed peaks
+        spec, peaks_found = find_peaks(spec, 0, self.max_peak_num, 'n')
+        num_fixed_peaks = len(peaks_found)
+        best_model_id = 0
+        if num_fixed_peaks >= self.max_peak_num:
+            # allow for one free peak
+            self.max_peak_num = num_fixed_peaks + 1
+            # print('Found more than max number of peaks in initial guess')
+        num_free_peaks = self.max_peak_num - num_fixed_peaks
+
+        # fit free peaks
+        for free_peaks in range(num_free_peaks):
+
+            # run <n_attempts> fits for each free peak
+            for model_attempt in range(self.n_attempts):
+
+                spec = {
+                    'x': stemp[:-1],
+                    'y': sdmdt[:-1],
+                    'model': [
+                    ]
+                }
+
+                # initial guess
+                spec, peaks_found = find_peaks(
+                    spec,
+                    free_peaks,
+                    self.max_peak_num,
+                    'n'
+                )
+
+                model, params = generate_model(
+                    spec,
+                    peaks_found,
+                    'n',
+                    self.neg_range
+                )
+
+                output = model.fit(
+                    spec['y'],
+                    params,
+                    x=spec['x'],
+                    method='least_sq',
+                    fit_kws={'ftol': 1e-10}
+                )
+
+                bic_array.append(output.bic)
+                model_array.append(output)
+                model_param_array.append(((len(peaks_found) + free_peaks)))
+                spec_array.append(spec)
+
+                # check for BIC improvement and set new best model
+                if output.bic < min_bic - 10:
+                    min_bic = output.bic
+                    best_model_id = model_id
+
+                model_id += 1
+
+        # fit negative peaks seperately
+        if self.negative_peaks_flag == 'y':
+            print('fitting negative peaks...')
+            # if there are negative peaks, flip the TGA data upside-down
+            # and zero out the old positive (now negative) peaks
+            # this is sort of hacky, and only works when the negative peaks are well separated
+            # from the positive peaks
+            # consider subtracting the fit from the peaks, and flipping that
+            # instead in future improvements
+            no_negative_peaks_found = 0
+            # flip spectrum
+            flip_sdmdt = -sdmdt
+            # remove all (now negative) positive peaks
+            flip_sdmdt[flip_sdmdt < 0] = 0
+            spec = {
+                'x': stemp[:-1],
+                'y': flip_sdmdt[:-1],
+                'model': [
+                ]
+            }
+            # print(spec)
+            neg_spec, peaks_found = find_peaks(
+                spec, 0, self.max_peak_num, 'y')
+            # print(neg_spec)
+            if neg_spec != 0:
+                negative_model, negative_params = generate_model(
+                    spec, peaks_found, 'y', self.neg_range)
+
+                #fitter = Minimizer('least_squares', params, **{'tol':1e-10})
+
+                #fitter = fitter.minimize(method=method)
+
+                negative_output = negative_model.fit(spec['y'], negative_params, x=spec[
+                                                     'x'], method='least_sq', fit_kws={'ftol': 1e-12})
+                negative_components = negative_output.eval_components(x=spec[
+                                                                      'x'])
+            else:
+                no_negative_peaks_found = 1
+                negative_output = 0
+                negative_components = 0
+        else:
+            negative_output = 0
+            no_negative_peaks_found = 1
+            negative_components = 0
+
+        output = model_array[best_model_id]
+        spec = spec_array[best_model_id]
+
+        # get parameters of the best fits and add negative peaks if applicable
+        components = output.eval_components(x=spec['x'])
+
+        if no_negative_peaks_found == 0:
+            components['m' + str(len(spec['model'])) +
+                       '_'] = negative_components
+
+        if no_negative_peaks_found == 0:
+            best_fit = output.best_fit - negative_output.best_fit
+        else:
+            best_fit = output.best_fit
+
+        # calculate the area under the fit
+        print('calculating area under fit...')
+        area = 0
+        for i, model in enumerate(spec['model']):
+            area += integrate.trapz(components['m' + str(i) + '_'], spec['x'])
+        if no_negative_peaks_found == 0:
+            for i, model in enumerate(neg_spec['model']):
+                area += integrate.trapz(
+                    negative_components['m' + str(i) + '_'], spec['x'])
+
+        actual_mass_change = (mass_at_rt - mass_at_max) / mass_at_rt * 100
+        if np.abs(area - actual_mass_change) < self.mass_defect_warning:
+            multi_fit = 0
+            write_fig(fname, temp, mass, spec, output, negative_output,
+                      no_negative_peaks_found, components, negative_components,
+                      best_fit, model_param_array, multi_fit, mass_at_rt, rt,
+                      mass_at_run_start, mass_at_max, temp_at_max,
+                      self.amorphous_carbon_temp, mass_at_amorphous_carbon_temp,
+                      area, best_model_id, self.session_id, self.job_id, self.mass_loss,
+                      self.run_start_temp, neg_spec, self.input_params, self.fit_warnings)
+
+        else:
+            print('conducting multifit...')
+            multi_fit = 1
+            # find top five fits with best area agreement
+            area_array = []
+            area_difference_array = []
+            for model_num in range(len(model_array)):
+                output = model_array[model_num]
+                spec = spec_array[model_num]
+
+                components = output.eval_components(x=spec['x'])
+                # try:
+                #print(components, negative_components)
+                if no_negative_peaks_found == 0:
+                    components['m' + str(len(spec['model'])) +
+                               '_'] = negative_components
+
+                if no_negative_peaks_found == 0:
+                    best_fit = output.best_fit - negative_output.best_fit
+                else:
+                    best_fit = output.best_fit
+
+                area = 0
+                for i, model in enumerate(spec['model']):
+                    area += integrate.trapz(components['m' +
+                                                       str(i) + '_'], spec['x'])
+                if no_negative_peaks_found == 0:
+                    for i, model in enumerate(neg_spec['model']):
+                        area += integrate.trapz(
+                            negative_components['m' + str(i) + '_'], spec['x'])
+                area_difference_array.append(
+                    np.abs(area - (mass_at_rt - mass_at_max) / mass_at_rt * 100))
+                area_array.append(area)
+            # get the smallest n mass change values
+            fit_sequence = np.argsort(np.asarray(area_difference_array))
+
+            for model_num in fit_sequence[:self.mismatch_fit_number]:
+                # print(model_num)
+                output = model_array[model_num]
+                spec = spec_array[model_num]
+
+                components = output.eval_components(x=spec['x'])
+                # print(fit_num)
+
+                area = area_array[model_num]
+                print('running write_fig()')
+                write_fig(fname, temp, mass, spec, output, negative_output,
+                          no_negative_peaks_found, components,
+                          negative_components, best_fit, model_param_array,
+                          multi_fit, mass_at_rt, rt, mass_at_run_start,
+                          mass_at_max, temp_at_max, self.amorphous_carbon_temp,
+                          mass_at_amorphous_carbon_temp, area, model_num,
+                          self.session_id, self.job_id, self.mass_loss, self.run_start_temp,
+                          neg_spec, self.input_params, self.fit_warnings)
+
+    def start(self):
+
+        for i, fname in enumerate(self.flist):
+            self.fit_file(i, fname)
+
+        if env == 'Dev':
+            session = join(BASE_DIR, 'output', f'output_{self.session_id}')
+            fitting = join(session, 'fitting')
+            job = join(fitting, self.job_id)
+            shutil.rmtree(job)
 
 
 def derivative(temp, mass):
@@ -105,12 +343,14 @@ def derivative(temp, mass):
     to the mean of consecutive points.
     """
     n = 1
-    mass_diff = [mass[i + n] - mass[i] for i in range(len(mass) - n)]
-    temp_diff = [temp[i + n] - temp[i] for i in range(len(temp) - n)]
-    return (-1 * np.asarray(mass_diff) /
-            np.asarray(temp_diff), temp[:-n] + 0.5 *
-            np.asarray(temp_diff)
-            )
+    mass_diff = np.asarray([mass[i + n] - mass[i]
+                            for i in range(len(mass) - n)])
+    temp_diff = np.asarray([temp[i + n] - temp[i]
+                            for i in range(len(temp) - n)])
+    return (
+        -1 * mass_diff / temp_diff,
+        temp[:-n] + 0.5 * temp_diff
+    )
 
 
 def med_smooth(temp, mass, window_size=30):
@@ -118,11 +358,13 @@ def med_smooth(temp, mass, window_size=30):
     Use median value of window to smooth mass
     and temp values (temp values are unevenly spaced)
     """
-    mass_smooth = np.zeros((int(len(mass) / window_size)))
-    temp_smooth = np.zeros((int(len(mass) / window_size)))
+    num_windows = int(len(mass) / window_size)
 
-    for i in range(int(len(mass) / window_size) - 1):
-        window = mass[i * window_size:(i + 1) * window_size]
+    mass_smooth = np.zeros(num_windows)
+    temp_smooth = np.zeros(num_windows)
+
+    for i in range(num_windows - 1):
+        window = mass[i * window_size: (i + 1) * window_size]
         window_within_bounds = np.where(np.abs(window) < 50)
         mass_smooth[i] = np.median(window[window_within_bounds])
         temp_smooth[i] = np.mean(temp[i * window_size:(i + 1) * window_size])
@@ -130,44 +372,45 @@ def med_smooth(temp, mass, window_size=30):
     return temp_smooth[:-1], mass_smooth[:-1]
 
 
-def fft_filter(temp, dmdt):
+def preprocess(temp, mass, mass_at_rt):
     """
-    fourier component filter for experimentation
+    Preprocess temp and mass data by turning mass into a percentage,
+    sorting by increasing temp, taking derivative, and applying savgol
+    & median smoothing.
     """
-    for ci, i in enumerate(dmdt):
-        if np.isinf(i) or np.isnan(i):
-            dmdt[ci] = dmdt[ci - 1]
-    rft = np.fft.rfft(dmdt)
 
-    # plt.plot(rft)
+    # turn mass into a percentage
+    mass = mass / mass_at_rt * 100
 
-    # plt.show()
-    # rft[-int(0.95*len(rft)):] = 0   # Note, rft.shape = 21
-    # [i/(ci+100) for ci,i in enumerate(rft[100:])]
-    rft[-int(0.2 * len(rft)):] = 0
-    y_smooth = np.fft.irfft(rft)
-    if len(temp) > len(y_smooth):
-        temp = temp[:len(y_smooth)]
-        dmdt = dmdt[:len(y_smooth)]
-    elif len(temp) < len(y_smooth):
-        y_smooth = y_smooth[:len(temp)]
+    # order temperature, and mass values by increasing temperature
+    tsort = np.argsort(temp)
+    temp = temp[tsort]
+    mass = mass[tsort]
 
-    return y_smooth
+    # apply a smoothing filter
+    # these numbers can be tweaked, but these seem to work
+    # for the provided sample data
+    mass = savgol_filter(mass, 51, 3)
 
+    # take derivative
+    ns_dmdt, ns_temp = derivative(temp, mass)
 
-def mean_smooth(temp, mass, window_size=2):
-    """Use mean value of window to smooth mass and temp values"""
-    mass_csum = np.cumsum(mass)
-    mass_csum[window_size:] = mass_csum[
-        window_size:] - mass_csum[:-window_size]
-    mass_smooth = mass_csum[window_size - 1:] / window_size
+    # median smoothing
+    window_size = 30
+    stemp, sdmdt = med_smooth(ns_temp, ns_dmdt, window_size)
 
-    temp_csum = np.cumsum(temp)
-    temp_csum[window_size:] = temp_csum[
-        window_size:] - temp_csum[:-window_size]
-    temp_smooth = temp_csum[window_size - 1:] / window_size
+    # forward-fill infinite, NaN, and negative values less than -1
+    for i in range(len(sdmdt)):
+        if np.isinf(sdmdt[i]) or np.isnan(sdmdt[i]):
+            sdmdt[i] = sdmdt[i - 1]
+    for i in range(len(sdmdt) - 2):
+        if sdmdt[i] < -1:
+            sdmdt[i] = sdmdt[i - 1]
 
-    return temp_smooth, mass_smooth
+    # apply another savgol filter
+    sdmdt = savgol_filter(sdmdt, 11, 2)
+
+    return stemp, sdmdt
 
 
 def generate_model(spec, peak_indices, negative_peaks, neg_range):
@@ -281,7 +524,7 @@ def generate_model(spec, peak_indices, negative_peaks, neg_range):
         return composite_model, params
 
 
-def update_spec_from_peaks(spec, free_peaks, max_peak_num, negative_peaks, **kwargs):
+def find_peaks(spec, free_peaks, max_peak_num, negative_peaks, **kwargs):
     """
     generate initial guesses for peak locations
     """
@@ -290,29 +533,28 @@ def update_spec_from_peaks(spec, free_peaks, max_peak_num, negative_peaks, **kwa
     y = spec['y']
 
     x_range = np.max(x) - np.min(x)
-    # distance = 300./(x[1] - x[
-    # range of peak widths for guesses
-    # from the sample data, it seems like 20C, 50C, and 100C cover most of the
-    # major
 
-    peak_widths = (20. / (x[1] - x[0]), 50. /
-                   (x[1] - x[0]), 100. / (x[1] - x[0]))
+    peak_widths = (20. / (x[1] - x[0]),
+                   50. / (x[1] - x[0]),
+                   100. / (x[1] - x[0])
+                   )
 
     p_peaks = np.asarray([])
 
-    # initial signal to noise ratio for convolution wavelet transform peak
-    # finder
     snr = 1.5
     while len(p_peaks) == 0:
-        p_peaks = signal.find_peaks_cwt(y,  widths=peak_widths, min_snr=snr)
+        p_peaks = signal.find_peaks_cwt(y, widths=peak_widths, min_snr=snr)
+
         # if no peaks are found, halve the peak width guesses
         peak_widths = (peak_widths[0] * 0.5) + peak_widths
+
         if peak_widths[0] > 200 / (x[1] - x[0]):
             break
-        # print(p_peaks)
+
     if len(p_peaks) == 1:
         peak_indices = p_peaks
-    else:
+
+    elif len(p_peaks) > 1:
         # "melt together" peaks that are closer than 20C from each other
         peak_indices = []
         a = 0
@@ -361,17 +603,17 @@ def update_spec_from_peaks(spec, free_peaks, max_peak_num, negative_peaks, **kwa
             model['params'] = params
 
     # free peaks
-    # len(peak_indices) + free_peaks):
     for cp in range(len(peak_indices), max_peak_num):
         spec['model'].append({'type': 'VoigtModel'})
-        model = spec['model'][cp]  # model_indicie]
+        model = spec['model'][cp]
 
         params = {
             'height': np.max(y),
             'amplitude': 5,
-            'sigma': x_range / len(x) * 3,  # np.min(2,peak_widths),
+            'sigma': x_range / len(x) * 3,
             'center': 0.5 * (max(x) + min(x)) + (np.random.random() - 1) * (x_range) / 2
         }
+
         if 'params' in model:
             model.update(params)
         else:
@@ -380,76 +622,7 @@ def update_spec_from_peaks(spec, free_peaks, max_peak_num, negative_peaks, **kwa
     return spec, peak_indices
 
 
-def voigt():
-    """
-    Voight function for reference
-    """
-    z = (x - center + 1j * gamma) / (np.sqrt(2) * sigma)
-    w = np.exp(-z**2) * scipy.special.erf(-1j * z)
-
-    return amplitude * np.real(w) / (np.sqrt(2 * np.pi) * sigma)
-
-
-def parse_params(path):
-    """
-    Read the parameters file and make sure that the format is correct
-    """
-
-    param_dict = {'negative peaks': None, 'Temperature range to bound negative curve fitting': None,
-                  'Temperature range to bound positive curve fitting': None,
-                  'max peak num': None, 'mass defect warning': None,
-                  'Temperature to calculate mass loss from': None,
-                  'Temperature to calculate mass loss to': None,
-                  'run start temp': None, 'file format': None,
-                  'amorphous carbon temperature': None}
-    with open(path, 'r') as p:
-        lines = p.readlines()
-        for line in lines:
-            if '#' not in line:
-                split_line = line.split(':')
-                try:
-                    if param_dict[split_line[0].strip()] == None:
-                        param_dict[split_line[0].strip()] = split_line[1:][0]
-                        # print(split_line[1:])
-                except:
-                    raise Exception('Invalid Value in params file\n Valid values are \'negative peaks\', \'Temperature range to bound negative curve fitting\', \'Temperature range to bound positive curve fitting\', \'max peak num\', \'mass defect warning\' and \'mass loss range\''
-                                    'Please fix the parameter file, or delete it and run the program again to automatically generate a new one.')
-                    # exit(0)
-    return param_dict
-
-
-def create_default_params_file():
-    """
-    Generate a default parameters file
-    The default values can be customized here
-    When in doubt, use this to generate the params file, instead of writing it yourself
-    """
-    param_dict = {'negative peaks': 'no', 'Temperature range to bound negative curve fitting': 'None', 'Temperature range to bound positive curve fitting': 'full',
-                  'max peak num': '10', 'mass defect warning': '10', 'Temperature to calculate mass loss from': '60',
-                  'Temperature to calculate mass loss to': '950',
-                  'run start temp': '60', 'file format': 'Q500/DMSM', 'amorphous carbon temperature': '450'}
-    with open('params_file.txt', 'w') as p:
-        p.write('#Parameters file for TGA peak fitting. Parameters include:\n')
-        p.write('#negative peaks (yes/no), do you expect to see negative peaks?\n')
-        p.write('#Temperature range to bound negative curve fitting (two numbers separated by a comma, or "full"), restrict the negative peaks to lie within a certain range?\n')
-        p.write('#Temperature range to bound positive curve fitting (two numbers separated by a comma, or "full"), temperature range over which to fit peaks\n')
-        p.write('#max peak num (integer), fit up to this many peaks (depending on the complexity, more than 10 peaks could take some time)\n')
-        p.write('#mass defect warning (percentage), if the difference between the integrated area from the peaks, and the mass loss from the curve differ by this percentage, print out the five best fits according to mass defect agreement, otherwise, print out the best fit by BIC\n')
-        p.write('#Temperature to calculate mass loss from (temperature in C)\n')
-        p.write('#Temperature to calculate mass loss to (temperature in C)\n')
-        p.write(
-            '#run start temp: temperature at which to consider the experiment "live" (C)\n')
-        p.write('#file format: which file format to use, either "Q500/DMSM", "TGA 5500", or "Just Temp and Mass"\n')
-        for i in list(param_dict):
-            p.write(i + ': ' + param_dict[i] + '\n')
-
-    return param_dict
-
-
-def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peaks_found,
-              components, negative_components, best_fit, model_param_array, multi_fit,
-              mass_at_rt, rt, mass_at_run_start, mass_at_max, temp_at_max, amorphous_carbon_temp,
-              mass_at_amorphous_carbon_temp, area, model_num, session_id, job_id, mass_loss, run_start_temp, neg_spec, input_params, fit_warnings):
+def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peaks_found, components, negative_components, best_fit, model_param_array, multi_fit, mass_at_rt, rt, mass_at_run_start, mass_at_max, temp_at_max, amorphous_carbon_temp, mass_at_amorphous_carbon_temp, area, model_num, session_id, job_id, mass_loss, run_start_temp, neg_spec, input_params, fit_warnings):
     """
     generate output figures and text files
     """
@@ -630,477 +803,23 @@ def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peak
                 aws_secret_access_key=AWS_SECRET)
 
 
-def main(params_file_path, input_params, fnames=None, data_=None, input_dir=None, session_id=None, job_id=None):
-
-    mass_loss = None
-    run_start_temp = None
-    neg_spec = None
-    # input_params = None
-    fit_warnings = None
-
-    # p_name = glob.glob('params_file.txt')
-
-    # if len(p_name) == 0:
-    #     input_params = create_default_params_file()
-    #     print('Created default params file, make any changes (keeping the formatting) and run the program again to perform fits\n')
-    #     exit(0)
-    # else:
-
-    if input_params is None:
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print('parsing params file')
-        input_params = parse_params(params_file_path)
-
-    ### process params values ###
-    try:
-        max_peak_num = int(input_params['max peak num'].strip())
-    except:
-        raise Exception(
-            'invalid entry in params file: max peak num takes one integer number as input')
-        # exit(0)
-
-    try:
-        run_start_temp = float(input_params['run start temp'].strip())
-    except:
-        raise Exception(
-            'invalid entry in params file: run start temp takes one number as input')
-        # exit(0)
-
-    try:
-        mass_defect_warning = float(
-            input_params['mass defect warning'].strip())
-    except:
-        raise Exception(
-            'invalid entry in params file: mass defect warning takes a number as input')
-        # exit(0)
-
-    if input_params['negative peaks'].strip() == 'yes':
-        negative_peaks_flag = 'y'
-        if input_params['Temperature range to bound negative curve fitting'].strip() != 'None':
-            if input_params['Temperature range to bound negative curve fitting'].strip() == 'full':
-                neg_range = [-np.inf, np.inf]
-            else:
-                try:
-                    negative_peak_lower_bound, negative_peak_upper_bound = input_params[
-                        'Temperature range to bound negative curve fitting'].strip().split(',')
-                    neg_range = [float(negative_peak_lower_bound), float(
-                        negative_peak_upper_bound)]
-                except:
-                    raise Exception(
-                        'invalid entry in params file: Temperature range to bound negative curve fitting takes two comma separated values, or full')
-        else:
-            neg_range = [-np.inf, np.inf]
-    elif input_params['negative peaks'].strip() == 'no':
-        negative_peaks_flag = 'n'
-        negative_peak_lower_bound = None
-        negative_peak_upper_bound = None
-        neg_range = [None, None]
-    else:
-        raise Exception(
-            'invalid entry in params file: negative peaks takes only yes/no')
-        # exit(0)
-
-    if input_params['Temperature range to bound positive curve fitting'].strip() == 'full':
-        fit_range = [-np.inf, np.inf]
-    # if ',' not in input_params['Temperature range to bound positive curve
-    # fitting']:
-    else:
-        try:
-            fit_range = [float(i.strip()) for i in input_params[
-                'Temperature range to bound positive curve fitting'].split(',')]
-        except:
-            raise Exception(
-                'invalid entry in params file: Temperature range to bound positive curve fitting takes two comma separated numbers, or full')
-            # exit(0)
-
-    file_format = input_params['file format'].strip()
-    if file_format not in ["Q500/DMSM", "TGA 5500", "Just Temp and Mass"]:
-        raise Exception(
-            'invalid entry in params file: file format takes only "Q500/DMSM", "TGA 5500", or "Just Temp and Mass"')
-        # exit(0)
-
-    # amorphous carbon temperature
-    try:
-        amorphous_carbon_temp = float(
-            input_params['amorphous carbon temperature'].strip())
-    except:
-        raise Exception(
-            'invalid entry in params file: amorphous carbon temperature\n')
-        # exit(0)
-
-    mass_loss = [0, 0]
-    try:
-        mass_loss[0] = float(
-            input_params['Temperature to calculate mass loss from'])
-    except:
-        raise Exception(
-            'invalid entry in params file: Temperature to calculate mass loss from\n')
-        # exit(0)
-
-    try:
-        mass_loss[1] = float(
-            input_params['Temperature to calculate mass loss to'])
-    except:
-        raise Exception(
-            'invalid entry in params file: Temperature to calculate mass loss to')
-        # exit(0)
-    ###
-
-    # number of fit options if the mass defect difference threshold for fit
-    # quality is exceeded
-    mismatch_fit_number = 5
-
-    # number of times to fit for a given number of peaks
-    # the fitting algo is pretty good, but this can help avoid local minima
-    # at the cost of more running time
-    n_attempts = 2
-
-    # will fit all .txt files in the tga_files folder
-    # do not put any other .txt files in that folder
-    # flist = glob.glob('tga_files' + os.sep + '*.txt')
-    if fnames is None:
-        flist = os.listdir(input_dir)
-    else:
-        flist = fnames
-
-    fit_warnings = []
-    for i, fname in enumerate(flist):
-        print('Fitting : ', fname)
-
-        # read in TGA data
-        if data_ is None:
-            data = read_data(join(input_dir, fname), file_format)
-        else:
-            data = data_[i]
-        deriv = []
-
-        if len(data) == 3:
-            rt, mass_at_rt, temp, mass = data
-        else:
-            rt, mass_at_rt, temp, mass, deriv = data
-
-        # set any full bound values to the bounds of the data
-        if fit_range[0] == -np.inf:
-            fit_range[0] = temp[0]
-        if fit_range[1] == np.inf:
-            fit_range[1] = temp[-1]
-
-        if neg_range[0] == -np.inf:
-            neg_range[0] = temp[0]
-        if neg_range[1] == np.inf:
-            neg_range[1] = temp[-1]
-
-        if mass_loss[0] == -np.inf:
-            mass_loss[0] = temp[0]
-        if mass_loss[1] == np.inf:
-            mass_loss[1] = temp[-1]
-
-        # get important mass and temperature values (averaging +/- 1 degree C)
-        above_min = np.where(temp > fit_range[0])
-
-        in_range = np.where((temp > fit_range[0]) & (temp < fit_range[1]))
-
-        around_max = np.where(
-            (temp > fit_range[1] - 1) & (temp < fit_range[1] + 1))
-        print('!!!')
-        # print(temp.tolist())
-        # print(fit_range)
-        mass_at_max = np.mean(mass[around_max])
-        # print(mass[around_max])
-        temp_at_max = np.mean(temp[around_max])
-        temp = temp[in_range]
-        mass = mass[in_range]
-
-        around_run_start = np.where(
-            (temp > run_start_temp - 1) & (temp < run_start_temp + 1))
-        mass_at_run_start = np.mean(mass[around_run_start])
-
-        around_amorphous_carbon = np.where(
-            (temp > amorphous_carbon_temp - 1) & (temp < amorphous_carbon_temp))
-        mass_at_amorphous_carbon_temp = np.mean(mass[around_amorphous_carbon])
-
-        if len(deriv) > 0:
-            deriv = deriv[in_range]
-
-        # turn mass into a percentage
-        mass = normalize_mass(mass, mass_at_rt)
-        # order temperature, and mass values by increasing temperature
-        tsort = np.argsort(temp)
-        temp = temp[tsort]
-        mass = mass[tsort]
-
-        # apply a savgol filter with width 51 points, and order 3
-        # these numbers can be tweaked, but these seem to work
-        # for the provided sample data
-        mass = savgol_filter(mass, 51, 3)
-        # print('!!!!!!!!!!!!!')
-        # print(temp)
-        # print(mass)
-        # print('!!!!!!!!!!!!!')
-
-        # evening out temperature spacing (dead end, but maybe useful in the future)
-        #xx = np.linspace(temp.min(),temp.max(), 5000)
-
-        # interpolate + smooth
-        #itp = interp1d(temp, mass, kind='linear')
-
-        #mass = itp(xx)
-        #temp = xx
-
-        # take derivative
-        # print(derivative(temp, mass))
-        ns_dmdt, ns_temp = derivative(temp, mass)
-        #print([i for i in ns_dmdt if np.isnan(i) == True])
-
-        # mean smoothing
-        #stemp, sdmdt = mean_smooth(ns_temp, ns_dmdt, window_size=2)
-
-        # median smoothing
-        window_size = 30
-        stemp, sdmdt = med_smooth(ns_temp, ns_dmdt, window_size)
-
-        # fft filter
-        #sdmdt = fft_filter(stemp,sdmdt)
-        # print(sdmdt_fft)
-
-        for i in range(len(sdmdt)):
-            if np.isinf(sdmdt[i]) or np.isnan(sdmdt[i]):
-                sdmdt[i] = sdmdt[i - 1]
-
-        for i in range(len(sdmdt) - 2):
-            if sdmdt[i] < -1:
-                sdmdt[i] = sdmdt[i - 1]
-
-        # apply another savgol filter
-        sdmdt = savgol_filter(sdmdt, 11, 2)
-
-        # sdmdt, stemp = derivative(xx, itp(xx))#temp, mass)
-
-        # regression smoothing
-        #lowess = sm.nonparametric.lowess
-        #frac = 10/len(temp)
-        #smoothed = lowess(sdmdt, stemp, frac=frac,it=2)
-
-        #stemp = smoothed[:,0]
-        #sdmdt = smoothed[:,1]
-
-        stemp1 = stemp
-        sdmdt1 = sdmdt
-
-        # if there is a derivative column
-        # else:
-        #    stemp1 = temp
-        #    sdmdt1 = deriv
-
-        # set initial fit values
-        prev_bic = 0
-        aic_array = []
-        model_array = []
-        spec_array = []
-        bic_array = []
-        model_param_array = []
-        min_bic = 10000
-        best_model_id = 0
-        model_id = 0
-
-        total_peaks = 0
-
-        # define fit data dictionary
-        spec = {
-            'x': stemp1[:-1],
-            'y': sdmdt1[:-1],
-            'model': [
-            ]
-        }
-        # initial guess
-        print('making initial guess....')
-        spec, peaks_found = update_spec_from_peaks(spec, 0, max_peak_num, 'n')
-        fixed_peaks = len(peaks_found)
-        best_model_id = 0
-        # print(peaks_found)
-        if fixed_peaks >= max_peak_num:
-            # if there are more found peaks than max peaks, change the max peak number so that there is one
-            # free peak, and continue with the fitting
-            max_peak_num = fixed_peaks + 1
-            print('Found more than max number of peaks in initial guess')
-        for free_peaks in range(0, max_peak_num - fixed_peaks):
-            print('loop')
-            #print(free_peaks, '/', max_peak_num - fixed_peaks)
-            model_try = []
-            for model_attempt in range(n_attempts):
-
-                spec = {
-                    'x': stemp1[:-1],
-                    'y': sdmdt1[:-1],
-                    'model': [
-                    ]
-                }
-                # initial guess
-                spec, peaks_found = update_spec_from_peaks(
-                    spec, free_peaks, max_peak_num, 'n')
-
-                model, params = generate_model(
-                    spec, peaks_found, 'n', neg_range)
-
-                output = model.fit(spec['y'], params, x=spec[
-                                   'x'], method='least_sq', fit_kws={'ftol': 1e-10})
-
-                # keep track of the difference in bic
-                delta_bic = max(output.bic, min_bic) - min(output.bic, min_bic)
-
-                bic_array.append(output.bic)
-                model_array.append(output)
-                model_param_array.append(((len(peaks_found) + free_peaks)))
-                spec_array.append(spec)
-                if output.bic < min_bic - 10:
-                    # if the bic is 10 less than the lowest so far
-                    # reset the bic, and keep track of the new "best model"
-                    print('significantly improved bic...')
-                    min_bic = output.bic
-                    best_model_id = model_id
-
-                    #print(free_peaks, output.chisqr, output.bic, delta_bic, 'to reject', free_peaks if output.bic > min_bic else best_model_id, output.aic)
-                    #print('current model', model_id)
-                    prev_bic = output.bic
-                model_id += 1
-                # print(model_param_array)
-        # fit negative peaks seperately
-        if negative_peaks_flag == 'y':
-            print('fitting negative peaks...')
-            # if there are negative peaks, flip the TGA data upside-down
-            # and zero out the old positive (now negative) peaks
-            # this is sort of hacky, and only works when the negative peaks are well separated
-            # from the positive peaks
-            # consider subtracting the fit from the peaks, and flipping that
-            # instead in future improvements
-            no_negative_peaks_found = 0
-            # flip spectrum
-            flip_sdmdt1 = -sdmdt1
-            # remove all (now negative) positive peaks
-            flip_sdmdt1[flip_sdmdt1 < 0] = 0
-            spec = {
-                'x': stemp1[:-1],
-                'y': flip_sdmdt1[:-1],
-                'model': [
-                ]
-            }
-            # print(spec)
-            neg_spec, peaks_found = update_spec_from_peaks(
-                spec, 0, max_peak_num, 'y')
-            # print(neg_spec)
-            if neg_spec != 0:
-                negative_model, negative_params = generate_model(
-                    spec, peaks_found, 'y', neg_range)
-
-                #fitter = Minimizer('least_squares', params, **{'tol':1e-10})
-
-                #fitter = fitter.minimize(method=method)
-
-                negative_output = negative_model.fit(spec['y'], negative_params, x=spec[
-                                                     'x'], method='least_sq', fit_kws={'ftol': 1e-12})
-                negative_components = negative_output.eval_components(x=spec[
-                                                                      'x'])
-            else:
-                no_negative_peaks_found = 1
-                negative_output = 0
-                negative_components = 0
-        else:
-            negative_output = 0
-            no_negative_peaks_found = 1
-            negative_components = 0
-
-        output = model_array[best_model_id]
-        spec = spec_array[best_model_id]
-
-        # get parameters of the best fits and add negative peaks if applicable
-        components = output.eval_components(x=spec['x'])
-        # try:
-        #print(components, negative_components)
-        if no_negative_peaks_found == 0:
-            components['m' + str(len(spec['model'])) +
-                       '_'] = negative_components
-
-        if no_negative_peaks_found == 0:
-            best_fit = output.best_fit - negative_output.best_fit
-        else:
-            best_fit = output.best_fit
-
-        # calculate the area under the fit
-        print('calculating area under fit...')
-        area = 0
-        for i, model in enumerate(spec['model']):
-            area += integrate.trapz(components['m' + str(i) + '_'], spec['x'])
-        if no_negative_peaks_found == 0:
-            for i, model in enumerate(neg_spec['model']):
-                area += integrate.trapz(
-                    negative_components['m' + str(i) + '_'], spec['x'])
-
-        if np.abs(area - (mass_at_rt - mass_at_max) / mass_at_rt * 100) < mass_defect_warning:
-            # if there is good agreement between the fit integration and the mass loss
-            # print out one fit figure and fit file
-            multi_fit = 0
-            fit_num = 1
-            write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peaks_found,
-                      components, negative_components, best_fit, model_param_array, multi_fit,
-                      mass_at_rt, rt, mass_at_run_start, mass_at_max, temp_at_max, amorphous_carbon_temp,
-                      mass_at_amorphous_carbon_temp, area, best_model_id, session_id, job_id, mass_loss, run_start_temp, neg_spec, input_params, fit_warnings)
-        else:
-            print('conducting multifit...')
-            multi_fit = 1
-            # find top five fits with best area agreement
-            area_array = []
-            area_difference_array = []
-            for model_num in range(len(model_array)):
-                output = model_array[model_num]
-                spec = spec_array[model_num]
-
-                components = output.eval_components(x=spec['x'])
-                # try:
-                #print(components, negative_components)
-                if no_negative_peaks_found == 0:
-                    components['m' + str(len(spec['model'])) +
-                               '_'] = negative_components
-
-                if no_negative_peaks_found == 0:
-                    best_fit = output.best_fit - negative_output.best_fit
-                else:
-                    best_fit = output.best_fit
-
-                area = 0
-                for i, model in enumerate(spec['model']):
-                    area += integrate.trapz(components['m' +
-                                                       str(i) + '_'], spec['x'])
-                if no_negative_peaks_found == 0:
-                    for i, model in enumerate(neg_spec['model']):
-                        area += integrate.trapz(
-                            negative_components['m' + str(i) + '_'], spec['x'])
-                area_difference_array.append(
-                    np.abs(area - (mass_at_rt - mass_at_max) / mass_at_rt * 100))
-                area_array.append(area)
-            # get the smallest n mass change values
-            fit_sequence = np.argsort(np.asarray(area_difference_array))
-
-            for model_num in fit_sequence[:mismatch_fit_number]:
-                # print(model_num)
-                output = model_array[model_num]
-                spec = spec_array[model_num]
-
-                components = output.eval_components(x=spec['x'])
-                # print(fit_num)
-
-                area = area_array[model_num]
-                print('running write_fig()')
-                write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peaks_found,
-                          components, negative_components, best_fit, model_param_array, multi_fit,
-                          mass_at_rt, rt, mass_at_run_start, mass_at_max, temp_at_max, amorphous_carbon_temp,
-                          mass_at_amorphous_carbon_temp, area, model_num, session_id, job_id, mass_loss, run_start_temp, neg_spec, input_params, fit_warnings)
-
-    print('done!')
-    if env == 'Dev':
-        session = join(BASE_DIR, 'output', f'output_{session_id}')
-        fitting = join(session, 'fitting')
-        job = join(fitting, job_id)
-        shutil.rmtree(job)
-    # if there is bad agreement, write a specified number of output figs and files to a directory
-    # print(path)
-    # print(fit_warnings)
+def main(
+    params_file_path,
+    input_params,
+    fnames=None,
+    data_=None,
+    input_dir=None,
+    session_id=None,
+    job_id=None
+    ):
+
+    worker = Worker(
+        params_file_path,
+        input_params,
+        fnames,
+        data_,
+        input_dir,
+        session_id,
+        job_id
+    )
+    worker.start()
