@@ -264,7 +264,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
                     elif encoding == 'ascii':
                         s = s.decode('utf-8')
                     else:
-                        s = s.decode('utf-8')
+                        s = s.decode(encoding)
                 except UnicodeDecodeError as e:
                     print(e)
                     raise Exception(f'Error uploading file {list_of_names[i]}.\
