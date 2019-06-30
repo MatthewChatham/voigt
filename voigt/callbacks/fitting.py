@@ -219,15 +219,15 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
     if n_clicks is None or n_clicks == 0:
         return fit_jobs
 
+    # set job_id and make directory for output
     fit_job_id = str(int(round(time.time() * 1000)))
     job = join(BASE_DIR, 'output', f'output_{session_id}', 'fitting', f'job_{fit_job_id}')
     if not exists(job):
         os.mkdir(job)
 
-    # created by upload callback when page is loaded
+    # check to make sure user has uploaded
     input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'fitting')
     user_has_uploaded = exists(input_dir) and len(os.listdir(input_dir)) > 0
-
     if not user_has_uploaded:
         return fit_jobs
 
