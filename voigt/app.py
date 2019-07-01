@@ -4,3 +4,4 @@ from . import callbacks
 
 server = app.server
 app.layout = layout
+app.title = 'Nanotube Analysis'
