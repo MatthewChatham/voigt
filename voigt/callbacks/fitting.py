@@ -12,6 +12,7 @@ import dash_bootstrap_components as dbc
 import time
 import shutil
 import json
+from rq.exceptions import NoSuchJobError
 
 from ..worker import conn
 from ..server import app
@@ -103,7 +104,10 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
         if len(fit_jobs) == 0:
             return 'ready'
 
-        job = Job.fetch(fit_jobs[-1], connection=conn)
+        try:
+            job = Job.fetch(fit_jobs[-1], connection=conn)
+        except NoSuchJobError:
+            return 'finished'
         print(f'Job status: {job.get_status()}')
         return job.get_status()
 
@@ -119,14 +123,15 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
 
     elif job_status() == 'finished':
 
-        outputdir = join(BASE_DIR, 'output',
-                         f'output_{session_id}', 'fitting', f'job_{fit_jobs[-1]}')
+        fitting = join(BASE_DIR, 'output',
+                         f'output_{session_id}', 'fitting')
+        outputdir = join(fitting, f'job_{fit_jobs[-1]}')
         if not exists(outputdir):
             os.mkdir(outputdir)
 
         # already downloaded results
         if len(os.listdir(outputdir)) > 0:
-            if not isfile(join(outputdir, f'job_{fit_jobs[-1]}.zip')):
+            if not isfile(join(fitting, f'job_{fit_jobs[-1]}.zip')):
                 tmp = shutil.make_archive(outputdir, 'zip', outputdir)
                 print(f'made archive {tmp}')
             res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', {},
@@ -215,7 +220,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
                 True
             )
 
-    print(res)
+    # print(res)
     return res
 
 
