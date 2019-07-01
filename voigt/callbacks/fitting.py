@@ -302,7 +302,7 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
                     input_dir,
                     session_id,
                     fit_job_id,),
-              job_id=fit_job_id, job_timeout=minutes * 60,
+              job_id=fit_job_id, job_timeout=minutes * 60, result_ttl=10
               )
     fit_jobs.append(fit_job_id)
 
