@@ -176,6 +176,8 @@ step2 = [
 step3 = [
     html.H1('Step 3: Run Peak-Fitting Routine', style={'margin-left': '10px'}),
 
+    html.P('Job timeout is set to 15 minutes.', style={'margin-left': '25px'}),
+
     dbc.Row([
 
         dbc.Col([
