@@ -51,7 +51,8 @@ def toggle_neg_peak_range(neg_peaks, style):
 
 
 @app.callback(
-    [Output('pos-peak-slider', 'disabled'), Output('pos-peak-slider', 'value')],
+    [Output('pos-peak-slider', 'disabled'),
+     Output('pos-peak-slider', 'value')],
     [Input('temp-range-pos-full', 'values')],
     [State('pos-peak-slider', 'style'), State('pos-peak-slider', 'value')]
 )
@@ -83,7 +84,8 @@ def update_pos_peak_range(value):
     [
         Output('dl_link_fitting', 'href'),
         Output('dl_link_fitting', 'style'),
-        Output('feedback_fitting', 'children')
+        Output('feedback_fitting', 'children'),
+        Output('submit_fitting', 'disabled')
     ],
     [Input('interval', 'n_intervals')],
     [
@@ -93,27 +95,29 @@ def update_pos_peak_range(value):
 )
 def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
     if n_intervals == 0:
-        return '#', {'display': 'none'}, ''
+        return '#', {'display': 'none'}, '', False
 
     res = None
 
-    def _check_for_output():
-
+    def job_status():
         if len(fit_jobs) == 0:
-            return False
+            return 'ready'
 
         job = Job.fetch(fit_jobs[-1], connection=conn)
-        # print(df.columns)
-        # print('NAMES', df)
-
-        # Todo: account for failure and provide feedback to user
         print(f'Job status: {job.get_status()}')
-        if job.get_status() in ['finished', 'failed']:
-            return True
-        else:
-            return False
+        return job.get_status()
 
-    if _check_for_output():
+    input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'fitting')
+
+    if job_status() == 'queued':
+        msg = dbc.Alert(['Waiting for compute resources...', dbc.Spinner(type='grow')], color='warning')           
+        res = ('#', {'display': 'none'}, msg, True)
+    if job_status() == 'ready':
+        msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
+            else dbc.Alert('Upload some TGA measurements first!', color='warning')
+        res = ('#', {'display': 'none'}, msg, False)
+
+    elif job_status() == 'finished':
 
         outputdir = join(BASE_DIR, 'output',
                          f'output_{session_id}', 'fitting', f'job_{fit_jobs[-1]}')
@@ -126,7 +130,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
                 tmp = shutil.make_archive(outputdir, 'zip', outputdir)
                 print(f'made archive {tmp}')
             res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', {},
-                   dbc.Alert('Your results are ready!', color='success'))
+                   dbc.Alert('Your results are ready!', color='success'), False)
 
         # download results
         else:
@@ -168,15 +172,38 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
                 print(f'made archive {tmp}')
 
             res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', {},
-                   dbc.Alert('Your results are ready!', color='success'))
-    else:
+                   dbc.Alert('Your results are ready!', color='success'), False)
+    elif job_status() == 'failed':
+        job = Job.fetch(fit_jobs[-1], connection=conn)
+        job_id = fit_jobs[-1]
+        if 'JobTimeoutException' in job.exc_info:
+            res = ('#', {'display': 'none'}, dbc.Alert(f'Job {session_id}:{job_id} failed due to timeout!', color='danger'), False)
+        else:
+            res = ('#', {'display': 'none'}, dbc.Alert(f'Job {session_id}:{job_id} failed!', color='danger'), False)
+        jobdir = join(BASE_DIR, 'output', f'output_{session_id}', 'fitting', f'job_{job_id}')
+        with open(join(jobdir, 'log.txt'), 'w') as f:
+            f.write(job.exc_info)
+        # upload log to S3
+        if os.environ.get('STACK'):
+            AWS_ACCESS = os.environ['AWS_ACCESS']
+            AWS_SECRET = os.environ['AWS_SECRET']
+        else:
+            with open(join(BASE_DIR, '.aws'), 'r') as f:
+                creds = json.loads(f.read())
+                AWS_ACCESS = creds['access']
+                AWS_SECRET = creds['secret']
+        from voigt.common.amazon import upload_file
+        s3_pth = join(f'output_{session_id}', 'fitting', f'job_{job_id}', 'log', 'log.txt')
+        upload_file(join(jobdir, 'log.txt'), object_name=s3_pth, aws_access_key_id=AWS_ACCESS,
+                    aws_secret_access_key=AWS_SECRET)
+
+    elif job_status() == 'started':
         registry = StartedJobRegistry('default', connection=conn)
-        input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'fitting')
         # TODO concurrency? what if mutliple ppl use app at same time?
         if (fit_jobs and fit_jobs[-1] not in registry.get_job_ids()) or not fit_jobs:
             msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
                 else dbc.Alert('Upload some TGA measurements first!', color='warning')
-            res = ('#', {'display': 'none'}, msg)
+            res = ('#', {'display': 'none'}, msg, True)
         elif fit_jobs and fit_jobs[-1] in registry.get_job_ids():
             res = ('#', {'display': 'none'},
                    dbc.Alert(
@@ -184,9 +211,11 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
                     'Please wait while your request is processed.',
                     dbc.Spinner(type='grow')
                 ],
-                color='danger')
+                color='warning'),
+                True
             )
 
+    print(res)
     return res
 
 
@@ -241,7 +270,8 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
         neg_peaks = 'no' if len(neg_peaks) == 0 else 'yes'
         neg_peak_range = ','.join([str(x) for x in neg_peak_range]) \
             if neg_peaks == 'yes' else 'None'
-        pos_peak_range = ','.join([str(x) for x in pos_peak_range]) if not full else 'full'
+        pos_peak_range = ','.join(
+            [str(x) for x in pos_peak_range]) if not full else 'full'
 
         params_file_path = join(BASE_DIR, 'output', f'output_{session_id}',
                                 'fitting', 'params_file.txt')
@@ -263,6 +293,7 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
 
     # send the job to the worker for processing
     # TODO : distinguish fit job IDs from analysis job IDs
+    minutes = 15
     q.enqueue(main,
               args=(params_file_path,
                     parse_params(params_file_path),
@@ -271,7 +302,7 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
                     input_dir,
                     session_id,
                     fit_job_id,),
-              job_id=fit_job_id, job_timeout=1000,
+              job_id=fit_job_id, job_timeout=minutes * 60,
               )
     fit_jobs.append(fit_job_id)
 
