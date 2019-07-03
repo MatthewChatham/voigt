@@ -119,7 +119,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
     if job_status() == 'ready':
         msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
             else dbc.Alert('Upload some TGA measurements first!', color='warning')
-        res = ('#', {'display': 'none'}, msg, False)
+        res = ('#', {'display': 'none'}, msg, True)
 
     elif job_status() == 'finished':
 
