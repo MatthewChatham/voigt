@@ -239,6 +239,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
         State('file-format', 'value'),
         State('amorphous-carbon-temp', 'value'),
         State('temp-range-pos-full', 'values'),
+        State('job-timeout-mins', 'value'),
 
         State('session-id', 'children'),
         State('fit-jobs', 'children')
@@ -247,7 +248,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
 def submit(n_clicks, neg_peaks, neg_peak_range,
            pos_peak_range, max_peak_num, mass_defect_warning,
            mass_loss_from, mass_loss_to, run_start_temp, file_format,
-           amorph_carb_temp, full, session_id, fit_jobs):
+           amorph_carb_temp, full, timeout, session_id, fit_jobs):
 
     # runs on page load
     if n_clicks is None or n_clicks == 0:
@@ -307,7 +308,7 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
                     input_dir,
                     session_id,
                     fit_job_id,),
-              job_id=fit_job_id, job_timeout=minutes * 60, result_ttl=10
+              job_id=fit_job_id, job_timeout=timeout * 60, result_ttl=10
               )
     fit_jobs.append(fit_job_id)
 

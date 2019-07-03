@@ -176,11 +176,11 @@ step2 = [
 step3 = [
     html.H1('Step 3: Run Peak-Fitting Routine', style={'margin-left': '10px'}),
 
-    html.P('Job timeout is set to 15 minutes.', style={'margin-left': '25px'}),
-
     dbc.Row([
 
         dbc.Col([
+            html.Div(['Job timeout (minutes): ', dcc.Input(
+                min=1, max=20, step=1, value=15, type='number', id='job-timeout-mins')]),
 
             html.Span(id='feedback_fitting', style={
                 "background-color": "#d3d3d3", "width": "250px"}),
