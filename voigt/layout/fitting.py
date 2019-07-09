@@ -149,21 +149,21 @@ step2 = [
 
             # Temperature to calculate mass loss from
             html.Div(['Temp to calculate mass loss from: ', dcc.Input(
-                min=30, max=1000, step=1, value=60, type='number', id='mass-loss-from-temp', disabled=True), ]),
+                min=30, max=1000, step=1, value=60, type='number', id='mass-loss-from-temp', disabled=False), ]),
 
         ]),
 
         dbc.Col([
             # Temperature to calculate mass loss to
             html.Div(['Temp to calculate mass loss to: ', dcc.Input(
-                min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=True), ]),
+                min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=False), ]),
 
             # run start temp
             html.Div(['Run Start Temp: ', dcc.Input(
-                min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=True)]),
+                min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=False)]),
             # amorphous carbon temperature
             html.Div(['Amorphous Carbon Temperature: ', dcc.Input(
-                min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=True)]),
+                min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=False)]),
 
 
         ])

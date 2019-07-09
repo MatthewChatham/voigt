@@ -7,21 +7,21 @@ import re
 result_patterns = dict(
     pos_peaks=re.compile(r'Number of Positive Peaks: (\d+)'),
     neg_peaks=re.compile(r'Number of Negative Peaks: (\d+)'),
-    mass_30=re.compile(r'Mass at 30 C  : ([\d.]+) mg  --- 100 % '),
+    mass_30=re.compile(r'Mass at [\d]+ C  : ([\d.]+) mg  --- 100 % '),
     mass_950=re.compile(
-        r'Mass at 950\.0C : ([\d.]+) mg  --- ([\d.]+) % '),
+        r'Mass at [\d.]+C : ([\d.]+) mg  --- ([\d.]+) % '),
     mass_pct_950=re.compile(
-        r'Mass at 950\.0C : [\d.]+ mg  --- ([\d.]+) % '),
+        r'Mass at [\d.]+C : [\d.]+ mg  --- ([\d.]+) % '),
     mass_loss_pct=re.compile(
-        r'Mass loss % \(start mass - end mass\)/\(start mass\)\*100 between 60\.0C and 950\.0C  : ([\d.]+) %'),
+        r'Mass loss % \(start mass - end mass\)/\(start mass\)\*100 between [\d.]+C and [\d.]+C  : ([\d.]+) %'),
     loss_amorph=re.compile(
-        r'Mass loss to amorphous carbon temp450\.0C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
+        r'Mass loss to amorphous carbon temp[\d.]+C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
     loss_amorph_pct=re.compile(
-        r'Mass loss to amorphous carbon temp450\.0C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
+        r'Mass loss to amorphous carbon temp[\d.]+C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
     loss_60=re.compile(
-        r'Mass loss from 60\.0 C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
+        r'Mass loss from [\d.]+ C: (-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
     loss_60_pct=re.compile(
-        r'Mass loss from 60\.0 C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
+        r'Mass loss from [\d.]+ C: (?:-?[\d.]+|nan) mg --- (-?[\d.]+|nan)%'),
     peak_integration=re.compile(
         r'Peak Integration: ([\d.]+) % '),
 )
