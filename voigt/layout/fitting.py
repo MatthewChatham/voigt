@@ -124,7 +124,7 @@ step2 = [
                     min=30,
                     max=1000,
                     step=1,
-                    value=[30, 1000],
+                    value=[450, 850],
                     marks={
                         30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
                         1000: {'label': '1000°C', 'style': {'color': '#f50'}}
@@ -148,8 +148,8 @@ step2 = [
                 min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'), ]),
 
             # Temperature to calculate mass loss from
-            html.Div(['Temp to calculate mass loss from: ', dcc.Input(
-                min=30, max=1000, step=1, value=60, type='number', id='mass-loss-from-temp', disabled=False), ]),
+            # html.Div(['Temp to calculate mass loss from: ', dcc.Input(
+            #     min=30, max=1000, step=1, value=60, type='number', id='mass-loss-from-temp', disabled=False), ]),
 
         ]),
 
@@ -159,7 +159,7 @@ step2 = [
                 min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=False), ]),
 
             # run start temp
-            html.Div(['Run Start Temp: ', dcc.Input(
+            html.Div(['Run Start Temp / Temp to calculate mass loss from: ', dcc.Input(
                 min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=False)]),
             # amorphous carbon temperature
             html.Div(['Amorphous Carbon Temperature: ', dcc.Input(

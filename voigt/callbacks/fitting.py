@@ -233,7 +233,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
         State('pos-peak-slider', 'value'),
         State('max-peak-num', 'value'),
         State('mass-defect-warning', 'value'),
-        State('mass-loss-from-temp', 'value'),
+        # State('mass-loss-from-temp', 'value'),
         State('mass-loss-to-temp', 'value'),
         State('run-start-temp', 'value'),
         State('file-format', 'value'),
@@ -247,8 +247,10 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
 )
 def submit(n_clicks, neg_peaks, neg_peak_range,
            pos_peak_range, max_peak_num, mass_defect_warning,
-           mass_loss_from, mass_loss_to, run_start_temp, file_format,
+           mass_loss_to, run_start_temp, file_format,
            amorph_carb_temp, full, timeout, session_id, fit_jobs):
+
+    mass_loss_from = run_start_temp
 
     # runs on page load
     if n_clicks is None or n_clicks == 0:
