@@ -113,7 +113,7 @@ class Worker():
             deriv = deriv[in_range]
 
         # smoothing, etc.
-        stemp, sdmdt = preprocess(temp, mass, mass_at_rt)
+        stemp, sdmdt, temp, mass = preprocess(temp, mass, mass_at_rt)
 
         # set initial fit values
         model_array = []
@@ -410,7 +410,7 @@ def preprocess(temp, mass, mass_at_rt):
     # apply another savgol filter
     sdmdt = savgol_filter(sdmdt, 11, 2)
 
-    return stemp, sdmdt
+    return stemp, sdmdt, temp, mass
 
 
 def generate_model(spec, peak_indices, negative_peaks, neg_range):
@@ -719,6 +719,7 @@ def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peak
     except:
         ax1.text(100, 145, 'Number of Negative Peaks: 0')
 
+    print('adding texts to image')
     ax1.text(100, 140, 'chi2: ' + str(round(output.chisqr, 2)))
     ax1.text(100, 135, 'BIC: ' + str(round(output.bic, 2)) +
              '   AIC: ' + str(round(output.aic, 2)))
