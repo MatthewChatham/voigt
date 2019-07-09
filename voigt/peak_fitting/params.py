@@ -104,6 +104,7 @@ def parse_input_params(input_params):
     try:
         mass_loss[0] = float(
             input_params['Temperature to calculate mass loss from'])
+        mass_loss[0] = run_start_temp
     except Exception:
         raise Exception(
             'invalid entry in params file: Temperature to calculate mass loss from\n')
