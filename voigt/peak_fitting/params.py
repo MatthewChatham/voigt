@@ -1,3 +1,4 @@
+import numpy as np
 
 params = """#Parameters file for TGA peak fitting. Parameters include:
 #negative peaks (yes/no), do you expect to see negative peaks?
