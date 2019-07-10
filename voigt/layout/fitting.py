@@ -129,7 +129,7 @@ step2 = [
                         30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
                         1000: {'label': '1000°C', 'style': {'color': '#f50'}}
                     },
-                    updatemode='drag',
+                    # updatemode='drag',
                     id='pos-peak-slider',
                     disabled=True
                 ),
