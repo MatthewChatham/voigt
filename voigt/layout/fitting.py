@@ -90,7 +90,7 @@ step2 = [
 
             # Temperature range to bound negative curve fitting
             html.Div([
-                html.P('Negative peak range:', id='neg-range-values'),
+                html.P('Negative Peak Range:', id='neg-range-values'),
                 dcc.Checklist(
                     options=[
                         {'label': 'Full (disables input)', 'value': 'full'},
@@ -114,7 +114,7 @@ step2 = [
 
             # Temperature range to bound positive curve fitting
             html.Div([
-                html.P('Positive peak range:', id='pos-range-values'),
+                html.P('Positive Peak Range:', id='pos-range-values'),
                 dcc.Checklist(
                     options=[
                         {'label': 'Full (disables input)', 'value': 'full'},
@@ -123,36 +123,48 @@ step2 = [
                     id='temp-range-pos-full'
                 ),
                 dcc.Input(id='pos-range-min', type='number',
-                          min=30, max=1000, step=1, value=450),
+                          min=30, max=1000, step=1, value=450, inputMode='numeric'),
                 dcc.Input(id='pos-range-max', type='number',
                           min=30, max=1000, step=1, value=850),
-            ], style={'padding': '10px', 'width': '250px', 'margin-bottom': '5px'}),
+            ], style={'padding': '10px', 'width': '250px', 'margin-bottom': '5px', 'margin-top': '25px'}),
 
         ], width=3),
 
         dbc.Col([
 
             # max peak num
-            html.Div(['Max Peak Num: ', dcc.Input(
-                min=1, max=20, step=1, value=10, type='number', id='max-peak-num')]),
+            html.Div(['Max Peak Num: ', ]),
 
             # mass defect warning
-            html.Div(['Mass Defect Warning: ', dcc.Input(
-                min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'), ]),
-
-            # Temperature to calculate mass loss to
-            html.Div(['Temp to calculate mass loss to: ', dcc.Input(
-                min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=False), ]),
+            html.Div(['Mass Defect Warning: ', ]),
 
             # run start temp
-            html.Div(['Run Start Temp / Temp to calculate mass loss from: ', dcc.Input(
-                min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=False)]),
+            html.Div(['Run Start Temp: ', ]),
+
+            # Temperature to calculate mass loss to
+            html.Div(['Run End Temp: ', ]),
+
             # amorphous carbon temperature
-            html.Div(['Amorphous Carbon Temperature: ', dcc.Input(
-                min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=False)]),
+            html.Div(['Amorphous Carbon Temperature: ', ]),
 
 
-        ], width=6)
+        ], width=6),
+
+        dbc.Col([
+
+            dcc.Input(
+                min=1, max=20, step=1, value=10, type='number', id='max-peak-num'),
+            dcc.Input(
+                min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'),
+            dcc.Input(
+                min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=False),
+            dcc.Input(
+                min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=False),
+            dcc.Input(
+                min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=False)
+
+
+        ])
 
     ], style={'margin': '25px'}),
 
@@ -165,8 +177,8 @@ step3 = [
     dbc.Row([
 
         dbc.Col([
-            html.Div(['Job timeout (minutes): ', dcc.Input(
-                min=1, max=20, step=1, value=15, type='number', id='job-timeout-mins')]),
+            html.Div(['Job timeout: ', dcc.Input(
+                min=1, max=30, step=1, value=15, type='number', id='job-timeout-mins'), ' minutes'], style={'margin-bottom': '5px'}),
 
             html.Span(id='feedback_fitting', style={
                 "background-color": "#d3d3d3", "width": "250px"}),
