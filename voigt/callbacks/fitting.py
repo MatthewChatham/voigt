@@ -61,6 +61,22 @@ def toggle_neg_peak_range(neg_peaks, style):
 )
 def toggle_pos_peak_range(full, min_, max_):
     if len(full) == 0:
+        if min_ == 30 and max_ == 1000:
+            min_, max_ = 450, 850
+        return False, False, min_, max_
+    else:
+        return True, True, 30, 1000
+
+@app.callback(
+    [
+        Output('neg-range-min', 'disabled'), Output('neg-range-max', 'disabled'),
+        Output('neg-range-min', 'value'), Output('neg-range-max', 'value')
+    ],
+    [Input('temp-range-neg-full', 'values')],
+    [State('neg-range-min', 'value'), State('neg-range-max', 'value')]
+)
+def toggle_neg_peak_range(full, min_, max_):
+    if len(full) == 0:
         return False, False, min_, max_
     else:
         return True, True, 30, 1000
@@ -226,6 +242,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
         State('file-format', 'value'),
         State('amorphous-carbon-temp', 'value'),
         State('temp-range-pos-full', 'values'),
+        State('temp-range-neg-full', 'values'),
         State('job-timeout-mins', 'value'),
 
         State('session-id', 'children'),
@@ -235,7 +252,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
 def submit(n_clicks, neg_peaks, neg_min, neg_max,
            pos_min, pos_max, max_peak_num, mass_defect_warning,
            mass_loss_to, run_start_temp, file_format,
-           amorph_carb_temp, full, timeout, session_id, fit_jobs):
+           amorph_carb_temp, full, neg_full, timeout, session_id, fit_jobs):
 
     mass_loss_from = run_start_temp
 
@@ -263,8 +280,14 @@ def submit(n_clicks, neg_peaks, neg_min, neg_max,
 
         # translate Dash layout to params file
         neg_peaks = 'no' if len(neg_peaks) == 0 else 'yes'
-        neg_peak_range = ','.join([str(x) for x in [neg_min, neg_max]]) \
-            if neg_peaks == 'yes' else 'None'
+        neg_full = len(neg_full) != 0
+        if neg_peaks:
+            if not neg_full:
+                neg_peak_range = ','.join([str(x) for x in [neg_min, neg_max]])
+            else:
+                neg_peak_range = 'full'
+        else:
+            neg_peak_range = 'None'
         pos_peak_range = ','.join(
             [str(x) for x in [pos_min, pos_max]]) if not full else 'full'
 

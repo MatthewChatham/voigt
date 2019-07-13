@@ -93,7 +93,7 @@ step2 = [
                 html.P('Negative peak range:', id='neg-range-values'),
                 dcc.Checklist(
                     options=[
-                        {'label': 'Full', 'value': 'full'},
+                        {'label': 'Full (disables input)', 'value': 'full'},
                     ],
                     values=[], inputStyle={'margin-right': '5px'},
                     id='temp-range-neg-full'
@@ -107,12 +107,17 @@ step2 = [
                        'margin-bottom': '5px'},
                 id='neg-peak-range'),
 
+        ], width=3),
+
+
+        dbc.Col([
+
             # Temperature range to bound positive curve fitting
             html.Div([
                 html.P('Positive peak range:', id='pos-range-values'),
                 dcc.Checklist(
                     options=[
-                        {'label': 'Full', 'value': 'full'},
+                        {'label': 'Full (disables input)', 'value': 'full'},
                     ],
                     values=[], inputStyle={'margin-right': '5px'},
                     id='temp-range-pos-full'
@@ -123,10 +128,10 @@ step2 = [
                           min=30, max=1000, step=1, value=850),
             ], style={'padding': '10px', 'width': '250px', 'margin-bottom': '5px'}),
 
-        ]),
-
+        ], width=3),
 
         dbc.Col([
+
             # max peak num
             html.Div(['Max Peak Num: ', dcc.Input(
                 min=1, max=20, step=1, value=10, type='number', id='max-peak-num')]),
@@ -135,14 +140,6 @@ step2 = [
             html.Div(['Mass Defect Warning: ', dcc.Input(
                 min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'), ]),
 
-            # Temperature to calculate mass loss from
-            # html.Div(['Temp to calculate mass loss from: ', dcc.Input(
-            # min=30, max=1000, step=1, value=60, type='number',
-            # id='mass-loss-from-temp', disabled=False), ]),
-
-        ]),
-
-        dbc.Col([
             # Temperature to calculate mass loss to
             html.Div(['Temp to calculate mass loss to: ', dcc.Input(
                 min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=False), ]),
@@ -155,7 +152,7 @@ step2 = [
                 min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=False)]),
 
 
-        ])
+        ], width=6)
 
     ], style={'margin': '25px'}),
 
