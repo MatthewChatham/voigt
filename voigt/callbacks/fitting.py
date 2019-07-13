@@ -67,6 +67,7 @@ def toggle_pos_peak_range(full, min_, max_):
     else:
         return True, True, 30, 1000
 
+
 @app.callback(
     [
         Output('neg-range-min', 'disabled'), Output('neg-range-max', 'disabled'),
@@ -75,7 +76,7 @@ def toggle_pos_peak_range(full, min_, max_):
     [Input('temp-range-neg-full', 'values')],
     [State('neg-range-min', 'value'), State('neg-range-max', 'value')]
 )
-def toggle_neg_peak_range(full, min_, max_):
+def toggle_neg_peak_range2(full, min_, max_):
     if len(full) == 0:
         return False, False, min_, max_
     else:
