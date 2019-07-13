@@ -45,12 +45,12 @@ def set_tga_file_options(n_clicks, session_id):
     Output('tga-plot', 'figure'),
     [
         Input('tga-plot-dropdown', 'value'),
-        Input('pos-peak-slider', 'value')
+        Input('pos-range-min', 'value'), Input('pos-range-max', 'value')
     ],
     [State('session-id', 'children'), State('file-format',
                                             'value'), State('tga-plot', 'figure')]
 )
-def update_plot(file, pos_peak_range, session_id, format, figure):
+def update_plot(file, pos_min, pos_max, session_id, format, figure):
     if file is None:
         return {}
     input_dir = os.path.join(BASE_DIR, 'input', f'input_{session_id}', 'fitting')
@@ -80,9 +80,9 @@ def update_plot(file, pos_peak_range, session_id, format, figure):
             'shapes': [
                 {
                     'type': 'rect',
-                    'x0': pos_peak_range[0],
+                    'x0': pos_min,
                     'y0': 0,
-                    'x1': pos_peak_range[1],
+                    'x1': pos_max,
                     'y1': max(mass),
                     'line': {
                         'color': 'rgba(128, 0, 128, 1)',

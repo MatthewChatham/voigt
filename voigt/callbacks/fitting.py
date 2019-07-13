@@ -52,32 +52,18 @@ def toggle_neg_peak_range(neg_peaks, style):
 
 
 @app.callback(
-    [Output('pos-peak-slider', 'disabled'),
-     Output('pos-peak-slider', 'value')],
+    [
+        Output('pos-range-min', 'disabled'), Output('pos-range-max', 'disabled'),
+        Output('pos-range-min', 'value'), Output('pos-range-max', 'value')
+    ],
     [Input('temp-range-pos-full', 'values')],
-    [State('pos-peak-slider', 'style'), State('pos-peak-slider', 'value')]
+    [State('pos-range-min', 'value'), State('pos-range-max', 'value')]
 )
-def toggle_pos_peak_range(full, style, values):
+def toggle_pos_peak_range(full, min_, max_):
     if len(full) == 0:
-        return False, values
+        return False, False, min_, max_
     else:
-        return True, (30, 1000)
-
-
-@app.callback(
-    Output('neg-range-values', 'children'),
-    [Input('neg-peak-slider', 'value')],
-)
-def update_neg_peak_range(value):
-    return ['Temperature range to bound', html.Strong(' negative '), f'curve fitting: {value[0]}, {value[1]}']
-
-
-@app.callback(
-    Output('pos-range-values', 'children'),
-    [Input('pos-peak-slider', 'value')],
-)
-def update_pos_peak_range(value):
-    return ['Temperature range to bound', html.Strong(' positive '), f'curve fitting: {value[0]}, {value[1]}']
+        return True, True, 30, 1000
 
 
 # TODO!
@@ -114,7 +100,8 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
     input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'fitting')
 
     if job_status() == 'queued':
-        msg = dbc.Alert(['Waiting for compute resources...', dbc.Spinner(type='grow')], color='warning')           
+        msg = dbc.Alert(['Waiting for compute resources...',
+                         dbc.Spinner(type='grow')], color='warning')
         res = ('#', {'display': 'none'}, msg, True)
     if job_status() == 'ready':
         msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
@@ -124,7 +111,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
     elif job_status() == 'finished':
 
         fitting = join(BASE_DIR, 'output',
-                         f'output_{session_id}', 'fitting')
+                       f'output_{session_id}', 'fitting')
         outputdir = join(fitting, f'job_{fit_jobs[-1]}')
         if not exists(outputdir):
             os.mkdir(outputdir)
@@ -229,8 +216,8 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
     [Input('submit_fitting', 'n_clicks')],
     [
         State('negative-peaks', 'values'),
-        State('neg-peak-slider', 'value'),
-        State('pos-peak-slider', 'value'),
+        State('neg-range-min', 'value'), State('neg-range-max', 'value'),
+        State('pos-range-min', 'value'), State('pos-range-max', 'value'),
         State('max-peak-num', 'value'),
         State('mass-defect-warning', 'value'),
         # State('mass-loss-from-temp', 'value'),
@@ -245,8 +232,8 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs):
         State('fit-jobs', 'children')
     ]
 )
-def submit(n_clicks, neg_peaks, neg_peak_range,
-           pos_peak_range, max_peak_num, mass_defect_warning,
+def submit(n_clicks, neg_peaks, neg_min, neg_max,
+           pos_min, pos_max, max_peak_num, mass_defect_warning,
            mass_loss_to, run_start_temp, file_format,
            amorph_carb_temp, full, timeout, session_id, fit_jobs):
 
@@ -276,10 +263,10 @@ def submit(n_clicks, neg_peaks, neg_peak_range,
 
         # translate Dash layout to params file
         neg_peaks = 'no' if len(neg_peaks) == 0 else 'yes'
-        neg_peak_range = ','.join([str(x) for x in neg_peak_range]) \
+        neg_peak_range = ','.join([str(x) for x in [neg_min, neg_max]]) \
             if neg_peaks == 'yes' else 'None'
         pos_peak_range = ','.join(
-            [str(x) for x in pos_peak_range]) if not full else 'full'
+            [str(x) for x in [pos_min, pos_max]]) if not full else 'full'
 
         params_file_path = join(BASE_DIR, 'output', f'output_{session_id}',
                                 'fitting', 'params_file.txt')

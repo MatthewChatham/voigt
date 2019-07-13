@@ -82,7 +82,7 @@ step2 = [
             # negative peaks
             dcc.Checklist(
                 options=[
-                    {'label': 'Negative peaks', 'value': 'neg'},
+                    {'label': 'Fit negative peaks?', 'value': 'neg'},
                 ],
                 values=[], inputStyle={'margin-right': '5px'},
                 id='negative-peaks'
@@ -90,28 +90,26 @@ step2 = [
 
             # Temperature range to bound negative curve fitting
             html.Div([
-                html.P(['Temperature range to bound', html.Strong(
-                    ' negative '), 'curve fitting'], id='neg-range-values'),
-                dcc.RangeSlider(
-
-                    min=30,
-                    max=1000,
-                    step=1,
-                    value=[30, 1000],
-                    dots=False,
-                    marks={
-                        30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
-                        1000: {'label': '1000°C', 'style': {'color': '#f50'}}
-                    },
-                    id='neg-peak-slider',
-                    updatemode='drag',
+                html.P('Negative peak range:', id='neg-range-values'),
+                dcc.Checklist(
+                    options=[
+                        {'label': 'Full', 'value': 'full'},
+                    ],
+                    values=[], inputStyle={'margin-right': '5px'},
+                    id='temp-range-neg-full'
                 ),
-            ], style={'padding': '10px', 'width': '250px', 'margin-bottom': '5px'}, id='neg-peak-range'),
+                dcc.Input(id='neg-range-min', type='number',
+                          min=30, max=1000, step=1, value=30),
+                dcc.Input(id='neg-range-max', type='number',
+                          min=30, max=1000, step=1, value=1000),
+            ],
+                style={'padding': '10px', 'width': '250px',
+                       'margin-bottom': '5px'},
+                id='neg-peak-range'),
 
             # Temperature range to bound positive curve fitting
             html.Div([
-                html.P(['Temperature range to bound', html.Strong(
-                    ' positive '), 'curve fitting'], id='pos-range-values'),
+                html.P('Positive peak range:', id='pos-range-values'),
                 dcc.Checklist(
                     options=[
                         {'label': 'Full', 'value': 'full'},
@@ -119,20 +117,10 @@ step2 = [
                     values=[], inputStyle={'margin-right': '5px'},
                     id='temp-range-pos-full'
                 ),
-                dcc.RangeSlider(
-                    count=1,
-                    min=30,
-                    max=1000,
-                    step=1,
-                    value=[450, 850],
-                    marks={
-                        30: {'label': '30°C', 'style': {'color': '#77b0b1'}},
-                        1000: {'label': '1000°C', 'style': {'color': '#f50'}}
-                    },
-                    # updatemode='drag',
-                    id='pos-peak-slider',
-                    disabled=True
-                ),
+                dcc.Input(id='pos-range-min', type='number',
+                          min=30, max=1000, step=1, value=450),
+                dcc.Input(id='pos-range-max', type='number',
+                          min=30, max=1000, step=1, value=850),
             ], style={'padding': '10px', 'width': '250px', 'margin-bottom': '5px'}),
 
         ]),
@@ -149,7 +137,8 @@ step2 = [
 
             # Temperature to calculate mass loss from
             # html.Div(['Temp to calculate mass loss from: ', dcc.Input(
-            #     min=30, max=1000, step=1, value=60, type='number', id='mass-loss-from-temp', disabled=False), ]),
+            # min=30, max=1000, step=1, value=60, type='number',
+            # id='mass-loss-from-temp', disabled=False), ]),
 
         ]),
 
