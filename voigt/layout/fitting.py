@@ -12,17 +12,13 @@ step1 = [
         [
             dbc.Col(
                 [
-                    html.P('Note: Refreshing page will \
-                                    remove input files. \
-                                    Uploading multiple times will first \
-                                    remove all existing files.'),
                     # file format
                     html.Div(['File Format: ', dcc.Dropdown(options=[
                         {'label': 'Q500/DMSM', 'value': 'Q500/DMSM'},
                         {'label': 'TGA 5500', 'value': 'TGA 5500'},
                         {'label': 'Just Temp and Mass',
                             'value': 'Just Temp and Mass'}
-                    ], value='Q500/DMSM', style={'width': '200px'}, id='file-format')]),
+                    ], value='Q500/DMSM', style={'width': '100%'}, id='file-format')], style={'margin-left': '5px'}),
                     dcc.Upload(
                         id='upload-data-fitting',
                         children=html.Div([
@@ -55,11 +51,11 @@ step1 = [
                            'overflow': 'auto',
                            'max-height': '600px',
                            'resize': 'vertical'})),
-                dbc.Button('Parse files and refresh chart & options',
-                           id='tga-parse-data-and-refresh-chart',
-                           color='primary',
-                           style={'margin-top': '5px', 'font-size': '14px'})
-            ], style={'padding': '10px'}),
+                # dbc.Button('Parse files and refresh chart & options',
+                #            id='tga-parse-data-and-refresh-chart',
+                #            color='primary',
+                #            style={'margin-top': '5px', 'font-size': '14px'})
+            ], style={'padding': '10px', 'margin-top': '25px'}),
 
         ], style={'margin': '25px'}),
 
@@ -99,9 +95,9 @@ step2 = [
                     id='temp-range-neg-full'
                 ),
                 dcc.Input(id='neg-range-min', type='number',
-                          min=30, max=1000, step=1, value=30),
+                          min=30, max=1000, step=1, value=200),
                 dcc.Input(id='neg-range-max', type='number',
-                          min=30, max=1000, step=1, value=1000),
+                          min=30, max=1000, step=1, value=450),
             ],
                 style={'padding': '10px', 'width': '250px',
                        'margin-bottom': '5px'},
@@ -133,38 +129,27 @@ step2 = [
         dbc.Col([
 
             # max peak num
-            html.Div(['Max Peak Num: ', ]),
+            dbc.Row([dbc.Col('Max Peak Num: ', width=8), dbc.Col(dcc.Input(
+                min=1, max=20, step=1, value=10, type='number', id='max-peak-num'))]),
 
             # mass defect warning
-            html.Div(['Mass Defect Warning: ', ]),
+            dbc.Row([dbc.Col('Mass Defect Warning: ', width=8), dbc.Col(dcc.Input(
+                min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'))]),
 
             # run start temp
-            html.Div(['Run Start Temp: ', ]),
+            dbc.Row([dbc.Col('Run Start Temp: ', width=8), dbc.Col(dcc.Input(
+                min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=False))]),
 
             # Temperature to calculate mass loss to
-            html.Div(['Run End Temp: ', ]),
+            dbc.Row([dbc.Col('Run End Temp: ', width=8), dbc.Col(dcc.Input(
+                min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=False))]),
 
             # amorphous carbon temperature
-            html.Div(['Amorphous Carbon Temperature: ', ]),
+            dbc.Row([dbc.Col('Amorphous Carbon Temp: ', width=8), dbc.Col(dcc.Input(
+                min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=False))]),
 
 
         ], width=6),
-
-        dbc.Col([
-
-            dcc.Input(
-                min=1, max=20, step=1, value=10, type='number', id='max-peak-num'),
-            dcc.Input(
-                min=0, max=100, step=1, value=10, type='number', id='mass-defect-warning'),
-            dcc.Input(
-                min=30, max=1000, step=1, value=60, type='number', id='run-start-temp', disabled=False),
-            dcc.Input(
-                min=30, max=1000, step=1, value=950, type='number', id='mass-loss-to-temp', disabled=False),
-            dcc.Input(
-                min=30, max=1000, step=1, value=450, type='number', id='amorphous-carbon-temp', disabled=False)
-
-
-        ])
 
     ], style={'margin': '25px'}),
 
@@ -178,7 +163,7 @@ step3 = [
 
         dbc.Col([
             html.Div(['Job timeout: ', dcc.Input(
-                min=1, max=30, step=1, value=15, type='number', id='job-timeout-mins'), ' minutes'], style={'margin-bottom': '5px'}),
+                min=1, max=30, step=1, value=15, type='number', id='job-timeout-mins'), ' minutes'], style={'margin-bottom': '25px'}),
 
             html.Span(id='feedback_fitting', style={
                 "background-color": "#d3d3d3", "width": "250px"}),

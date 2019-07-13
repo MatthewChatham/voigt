@@ -162,7 +162,7 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
 
 
 @app.callback(
-    Output('output-data-upload-fitting', 'children'),
+    [Output('output-data-upload-fitting', 'children'), Output('tga-plot-dropdown', 'options')],
     [Input('upload-data-fitting', 'contents')],
     [
         State('upload-data-fitting', 'filename'),
@@ -187,6 +187,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
 
     # make a subdirectory for this session if one doesn't exist
     input_dir = join(BASE_DIR, 'input', f'input_{session_id}')
+    input_dir_session = os.path.join(BASE_DIR, 'input', f'input_{session_id}', 'fitting')
     try:
         os.mkdir(input_dir)
         os.mkdir(join(input_dir, 'fitting'))
@@ -229,7 +230,10 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
         # If the user isn't uplaoding anything and
         # hasn't uploaded anything, ask them to do so.
         if list_of_contents is None and len(os.listdir(join(input_dir, 'fitting'))) == 0:
-            return 'Please upload some files.'
+            return 'Please upload some files. Note: Refreshing page will \
+                                    remove input files. \
+                                    Uploading multiple times will first \
+                                    remove all existing files.', []
 
         # if the user is uploading something, first clean the input directory,
         # then write the uploaded files to BASE_DIR/input/input_{session_id}
@@ -283,7 +287,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
             res = [html.Li(x) for x in written]
             res.insert(0, html.P(f'Success! {len(written)} \
                 .txt files were uploaded.'))
-            return res
+            return res, [{'label': f, 'value': f} for f in os.listdir(input_dir_session)]
 
     except Exception as e:
         # If any of the files raise an error (wrong extension,
@@ -291,7 +295,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
         # then print the error message.
         _clean_input_dir()
         import traceback; traceback.print_exc()
-        return f'An error occurred while uploading files: {e}'
+        return f'An error occurred while uploading files: {e}', []
 
 
 @app.callback(
