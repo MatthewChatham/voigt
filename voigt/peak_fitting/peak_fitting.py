@@ -268,7 +268,7 @@ class Worker():
                       mass_at_run_start, mass_at_max, temp_at_max,
                       self.amorphous_carbon_temp, mass_at_amorphous_carbon_temp,
                       area, best_model_id, self.session_id, self.job_id, self.mass_loss,
-                      self.run_start_temp, neg_spec, self.input_params, self.fit_warnings)
+                      self.run_start_temp, neg_spec, self.input_params, self.fit_warnings, self.fit_range)
 
         else:
             print('conducting multifit...')
@@ -323,7 +323,7 @@ class Worker():
                           mass_at_max, temp_at_max, self.amorphous_carbon_temp,
                           mass_at_amorphous_carbon_temp, area, model_num,
                           self.session_id, self.job_id, self.mass_loss, self.run_start_temp,
-                          neg_spec, self.input_params, self.fit_warnings)
+                          neg_spec, self.input_params, self.fit_warnings, self.fit_range)
 
     def start(self):
 
@@ -623,7 +623,7 @@ def find_peaks(spec, free_peaks, max_peak_num, negative_peaks, **kwargs):
     return spec, peak_indices
 
 
-def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peaks_found, components, negative_components, best_fit, model_param_array, multi_fit, mass_at_rt, rt, mass_at_run_start, mass_at_max, temp_at_max, amorphous_carbon_temp, mass_at_amorphous_carbon_temp, area, model_num, session_id, job_id, mass_loss, run_start_temp, neg_spec, input_params, fit_warnings):
+def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peaks_found, components, negative_components, best_fit, model_param_array, multi_fit, mass_at_rt, rt, mass_at_run_start, mass_at_max, temp_at_max, amorphous_carbon_temp, mass_at_amorphous_carbon_temp, area, model_num, session_id, job_id, mass_loss, run_start_temp, neg_spec, input_params, fit_warnings, fit_range):
     """
     generate output figures and text files
     """
@@ -713,25 +713,27 @@ def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peak
     ax4.plot(spec['x'], output.best_fit, 'r-', markersize=2)
     ax4.set_xlim(spec['x'][zoom_x_range_low], spec['x'][zoom_x_range_high])
 
-    ax1.text(100, 150, 'Number of Positive Peaks: ' + str(len(spec['model'])))
+    max_mass = np.max(mass)
+
+    ax1.text(fit_range[0], max_mass + 45, 'Number of Positive Peaks: ' + str(len(spec['model'])))
     try:
-        ax1.text(100, 145, 'Number of Negative Peaks: ' +
+        ax1.text(fit_range[0], max_mass + 40, 'Number of Negative Peaks: ' +
                  str(len(neg_spec['model'])))
     except:
-        ax1.text(100, 145, 'Number of Negative Peaks: 0')
+        ax1.text(fit_range[0], max_mass + 40, 'Number of Negative Peaks: 0')
 
     print('adding texts to image')
-    ax1.text(100, 140, 'chi2: ' + str(round(output.chisqr, 2)))
-    ax1.text(100, 135, 'BIC: ' + str(round(output.bic, 2)) +
+    ax1.text(fit_range[0], max_mass + 35, 'chi2: ' + str(round(output.chisqr, 2)))
+    ax1.text(fit_range[0], max_mass + 30, 'BIC: ' + str(round(output.bic, 2)) +
              '   AIC: ' + str(round(output.aic, 2)))
-    ax1.text(100, 130, 'Peak Integration: ' + str(round(area, 2)) + ' %')
+    ax1.text(fit_range[0], max_mass + 25, 'Peak Integration: ' + str(round(area, 2)) + ' %')
     #ax1.text(100, 125, 'Peak Integration Difference (Fit - Exp): '+ str(round(np.abs(area - (mass_at_rt - mass_at_max)/mass_at_rt*100),2)) +' %')
     #ax1.text(100, 120, 'Mass Integration Difference (mass loss from peak - mass loss): ' + str(round((100-area) * mass_at_rt/100 - mass_at_max, 2)) + ' mg')
-    ax1.text(100, 115, 'Mass loss to amorphous carbon temp ' + str(amorphous_carbon_temp) + 'C: ' + str(round(mass_at_rt -
+    ax1.text(fit_range[0], max_mass + 15, 'Mass loss to amorphous carbon temp ' + str(amorphous_carbon_temp) + 'C: ' + str(round(mass_at_rt -
                                                                                                               mass_at_amorphous_carbon_temp, 2)) + ' mg --- ' + str(round((mass_at_rt - mass_at_amorphous_carbon_temp) / mass_at_rt * 100, 2)) + '%')
-    ax1.text(100, 110, 'Mass loss % (start mass - end mass)/(start mass)*100 between ' + str(round(mass_loss[0], 0)) + 'C and ' + str(
+    ax1.text(fit_range[0], max_mass + 10, 'Mass loss % (start mass - end mass)/(start mass)*100 between ' + str(round(mass_loss[0], 0)) + 'C and ' + str(
         round(mass_loss[1], 0)) + 'C  : ' + str(round((mass_at_rt - mass_at_max) / mass_at_rt * 100, 2)) + ' %')
-    ax1.text(100, 105, 'Mass at ' + str(round(mass_loss[1], 0)) + ' C : ' + str(round(
+    ax1.text(fit_range[0], max_mass + 5, 'Mass at ' + str(round(mass_loss[1], 0)) + ' C : ' + str(round(
         mass_at_max, 2)) + ' mg  --- ' + str(round(mass_at_max / mass_at_rt * 100, 2)) + ' %')
     plt.xlabel('Temperature')
 
