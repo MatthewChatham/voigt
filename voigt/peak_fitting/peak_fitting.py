@@ -771,8 +771,8 @@ def write_fig(fname, temp, mass, spec, output, negative_output, no_negative_peak
         except:
             out.write('Number of Negative Peaks: 0\r\n')
 
-        out.write('Mass at ' + str(round(rt, 0)) + ' C  : ' +
-                  str(mass_at_rt) + ' mg  --- 100 % \r\n')
+        out.write('Mass at ' + str(round(run_start_temp, 0)) + ' C  : ' +
+                  str(mass_at_run_start) + ' mg  --- 100 % \r\n')
         out.write('Mass at ' + str(round(mass_loss[1], 0)) + 'C : ' + str(
             mass_at_max) + ' mg  --- ' + str(mass_at_max / mass_at_rt * 100) + ' % \r\n')
         out.write('Mass loss % (start mass - end mass)/(start mass)*100 between ' + str(round(mass_loss[0], 0)) + 'C and ' + str(
