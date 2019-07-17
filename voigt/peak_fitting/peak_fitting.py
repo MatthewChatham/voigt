@@ -81,10 +81,10 @@ class Worker():
         rt, mass_at_rt, temp, mass, deriv = data
 
         # set any full bound values to the bounds of the data
-        self.fit_range[0] = max(-np.inf, temp[0])
-        self.fit_range[1] = min(np.inf, temp[-1])
-        self.neg_range[0] = max(-np.inf, temp[0])
-        self.neg_range[1] = min(np.inf, temp[-1])
+        self.fit_range[0] = temp[0] if np.isinf(self.fit_range[0]) else self.fit_range[0]
+        self.fit_range[1] = temp[-1] if np.isinf(self.fit_range[1]) else self.fit_range[1]
+        self.neg_range[0] = temp[0] if self.neg_range[0] is not None and np.isinf(self.neg_range[0]) else self.neg_range[0]
+        self.neg_range[1] = temp[-1] if self.neg_range[1] is not None and  np.isinf(self.neg_range[1]) else self.neg_range[1]
 
         self.fit_warnings = []
 
@@ -97,8 +97,6 @@ class Worker():
         )
         mass_at_max = np.mean(mass[around_max])
         temp_at_max = np.mean(temp[around_max])
-        temp = temp[in_range]
-        mass = mass[in_range]
         around_run_start = np.where(
             (temp > self.run_start_temp - 1) &
             (temp < self.run_start_temp + 1)
@@ -111,6 +109,9 @@ class Worker():
         mass_at_amorphous_carbon_temp = np.mean(mass[around_amorphous_carbon])
         if len(deriv) > 0:
             deriv = deriv[in_range]
+
+        temp = temp[in_range]
+        mass = mass[in_range]
 
         # smoothing, etc.
         stemp, sdmdt, temp, mass = preprocess(temp, mass, mass_at_rt)
