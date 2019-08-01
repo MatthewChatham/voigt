@@ -7,7 +7,7 @@ import re
 result_patterns = dict(
     pos_peaks=re.compile(r'Number of Positive Peaks: (\d+)'),
     neg_peaks=re.compile(r'Number of Negative Peaks: (\d+)'),
-    mass_30=re.compile(r'Mass at [\d]+ C  : ([\d.]+) mg  --- 100 % '),
+    mass_30=re.compile(r'Mass at [\d.]+ C  : ([\d.]+) mg  --- 100 % '),
     mass_950=re.compile(
         r'Mass at [\d.]+C : ([\d.]+) mg  --- ([\d.]+) % '),
     mass_pct_950=re.compile(
