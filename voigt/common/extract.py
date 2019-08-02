@@ -76,7 +76,11 @@ def parse_file(path):
         # Save TGA results to `results`
         for k, v in result_patterns.items():
             print(k)
-            results[k] = float(v.search(txt).group(1))
+            tmp = v.search(txt)
+            if tmp is None:
+                raise Exception(f'Error while parsing {k}')
+            else:
+                results[k] = float(tmp.group(1))
 
         # Extract info for any negative peaks
         if results['neg_peaks'] > 0:
