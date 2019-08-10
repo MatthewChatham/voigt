@@ -167,6 +167,8 @@ step3 = [
 
             html.Span(id='feedback_fitting', style={
                 "background-color": "#d3d3d3", "width": "250px"}),
+            html.Span(id='feedback_run_start_end', style={
+                "background-color": "#d3d3d3", "width": "250px"}),
             html.Span(dbc.Button('Fit Peaks', id='submit_fitting',
                                  style={'margin-bottom': '25px',
                                         'font-size': '16px'},
