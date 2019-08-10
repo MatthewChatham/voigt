@@ -162,7 +162,12 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
 
 
 @app.callback(
-    [Output('output-data-upload-fitting', 'children'), Output('tga-plot-dropdown', 'options')],
+    [
+        Output('output-data-upload-fitting', 'children'), 
+        Output('tga-plot-dropdown', 'options'), 
+        Output('run-start-temp', 'value'), 
+        Output('mass-loss-to-temp', 'value')
+    ],
     [Input('upload-data-fitting', 'contents')],
     [
         State('upload-data-fitting', 'filename'),
@@ -179,6 +184,9 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
     Provides feedback to the user.
 
     """
+
+    min_ = 60
+    max_ = 950
 
     print('UPLOAD')
 
@@ -233,7 +241,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
             return 'Please upload some files. Note: Refreshing page will \
                                     remove input files. \
                                     Uploading multiple times will first \
-                                    remove all existing files.', []
+                                    remove all existing files.', [], min_, max_
 
         # if the user is uploading something, first clean the input directory,
         # then write the uploaded files to BASE_DIR/input/input_{session_id}
@@ -278,7 +286,11 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
                     f.write(s)
 
                 try:
-                    read_data(join(input_dir, 'fitting', list_of_names[i]), format)
+                    d = read_data(join(input_dir, 'fitting', list_of_names[i]), format)
+                    temp = d[2]
+                    print(temp[0])
+                    min_ = max(min_, int(temp[0]) + 1)
+                    max_ = min(max_, int(temp[-1]) - 1)
                 except Exception as e:
                     raise Exception(f'Cannot parse file {list_of_names[i]}: {e}')
 
@@ -287,7 +299,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
             res = [html.Li(x) for x in written]
             res.insert(0, html.P(f'Success! {len(written)} \
                 .txt files were uploaded.'))
-            return res, [{'label': f, 'value': f} for f in os.listdir(input_dir_session)]
+            return res, [{'label': f, 'value': f} for f in os.listdir(input_dir_session)], min_, max_
 
     except Exception as e:
         # If any of the files raise an error (wrong extension,
@@ -295,7 +307,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
         # then print the error message.
         _clean_input_dir()
         import traceback; traceback.print_exc()
-        return f'An error occurred while uploading files: {e}', []
+        return f'An error occurred while uploading files: {e}', [], min_, max_
 
 
 @app.callback(
