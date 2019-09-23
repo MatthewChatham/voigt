@@ -372,10 +372,10 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
 
         # don't download if imagedir already full
         # download s3 images
-        if len(os.listdir(imagedir)) > 0:
+        if len(os.listdir(images)) > 0:
             # print(os.listdir(imagedir))
-            if not isfile(join(outputdir, 'images.zip')):
-                tmp = shutil.make_archive(imagedir, 'zip', imagedir)
+            if not isfile(join(analysis, 'images.zip')):
+                tmp = shutil.make_archive(images, 'zip', images)
                 print(f'made archive {tmp}')
                 # for f in os.listdir(imagedir):
                 #     os.unlink(join(imagedir, f))
@@ -409,7 +409,7 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
                     continue
                 path, filename = os.path.split(s3_object.key)
 
-                fpth = join(imagedir, filename)
+                fpth = join(images, filename)
 
                 print(f'checking for file {s3_object.key}')
                 if not isfile(fpth):
@@ -418,7 +418,7 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
                     do_zip = True
 
             if do_zip:
-                tmp = shutil.make_archive(imagedir, 'zip', imagedir)
+                tmp = shutil.make_archive(images, 'zip', images)
                 print(f'made archive {tmp}')
 
             res = ("data:text/csv;charset=utf-8," + quote(csv_string), {},
