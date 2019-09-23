@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def read_data(fname, format):
     """
     output: (room temperature, mass_at_rt, temp, mass, deriv)
@@ -48,6 +49,30 @@ def read_data(fname, format):
                     mass.append(float(row[2]))
                 if 'StartOfData' in str(line).strip():
                     start_collecting = True
+
+    elif format == "TGA 5500 v2":
+
+        start_collecting = False
+        steps = 0
+
+        with open(fname, encoding='utf_8') as f:
+            for line in f:
+
+                if 'Sample Mass' in line:
+                    mass_at_rt = float(line.split()[2])
+
+                if '[step]' in line:
+                    steps += 1
+
+                if 'min\t°C\tmg\t%' in str(line).strip() and steps == 2:
+                    start_collecting = True
+                elif steps > 2:
+                    start_collecting = False
+
+                if start_collecting and line.strip() and 'min\t°C\tmg\t%' not in str(line).strip():
+                    row = line.split()
+                    temp.append(float(row[1]))
+                    mass.append(float(row[2]))
 
         return rt, mass_at_rt, np.asarray(temp), np.asarray(mass), np.asarray(deriv)
 

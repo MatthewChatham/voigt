@@ -16,6 +16,7 @@ step1 = [
                     html.Div(['File Format: ', dcc.Dropdown(options=[
                         {'label': 'Q500/DMSM', 'value': 'Q500/DMSM'},
                         {'label': 'TGA 5500', 'value': 'TGA 5500'},
+                        {'label': 'TGA 5500 v2', 'value': 'TGA 5500 v2'},
                         {'label': 'Just Temp and Mass',
                             'value': 'Just Temp and Mass'}
                     ], value='Q500/DMSM', style={'width': '100%'}, id='file-format')], style={'margin-left': '5px'}),
