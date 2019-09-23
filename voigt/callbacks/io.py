@@ -345,8 +345,10 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
         # print('NAMES', df)
 
         if jobs and any(df.name.str.contains(f'output_{session_id}_{jobs[-1]}')):
+            print('found output')
             return True
         else:
+            print('didn\'t find output')
             return False
 
     if _check_for_output(n_intervals, dbconn):
