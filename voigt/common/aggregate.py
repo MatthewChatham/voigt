@@ -297,16 +297,15 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
     filename = models.filename.unique().tolist()[0]
     fn = f'{filename}_{pos_neg}_{bounds[0]}_{bounds[1]}.png' \
         if pos_neg == 'pos' else f'{filename}_neg.png'
-    session = join(BASE_DIR, 'output', f'output_{session_id}', 'analysis')
-    job = join(session, f'job_{job_id}')
+    output = join(BASE_DIR, 'output')
+    session = join(output, f'output_{session_id}')
+    analysis = join(BASE_DIR, 'output', f'output_{session_id}', 'analysis')
+    job = join(analysis, f'job_{job_id}')
     imagedir = join(job, 'images')
 
-    if not isdir(session):
-        os.mkdir(session)
-    if not isdir(job):
-        os.mkdir(job)
-    if not isdir(imagedir):
-        os.mkdir(imagedir)
+    for dir_ in [output, session, analysis, job, imagedir]:
+        if not isdir(dir_):
+            os.mkdir(dir_)
 
     pth = join(imagedir, fn)
     import matplotlib
