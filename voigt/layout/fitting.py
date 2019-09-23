@@ -163,7 +163,7 @@ step3 = [
 
         dbc.Col([
             html.Div(['Job timeout: ', dcc.Input(
-                min=1, max=30, step=1, value=15, type='number', id='job-timeout-mins'), ' minutes'], style={'margin-bottom': '25px'}),
+                min=1, max=60, step=1, value=15, type='number', id='job-timeout-mins'), ' minutes'], style={'margin-bottom': '25px'}),
 
             html.Span(id='feedback_fitting', style={
                 "background-color": "#d3d3d3", "width": "250px"}),
