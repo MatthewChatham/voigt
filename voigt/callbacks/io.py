@@ -86,7 +86,6 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
     except FileExistsError:
         pass
 
-
     try:
         os.mkdir(join(output_dir, 'analysis', 'images'))
     except FileExistsError:
@@ -143,7 +142,8 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
                 try:
                     parse_file(join(input_dir, 'analysis', list_of_names[i]))
                 except Exception as e:
-                    import traceback; traceback.print_exc()
+                    import traceback
+                    traceback.print_exc()
                     raise Exception(f'Cannot parse file {list_of_names[i]}: {e}')
 
                 written.append(list_of_names[i])
@@ -163,9 +163,9 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
 
 @app.callback(
     [
-        Output('output-data-upload-fitting', 'children'), 
-        Output('tga-plot-dropdown', 'options'), 
-        Output('run-start-temp', 'value'), 
+        Output('output-data-upload-fitting', 'children'),
+        Output('tga-plot-dropdown', 'options'),
+        Output('run-start-temp', 'value'),
         Output('mass-loss-to-temp', 'value')
     ],
     [Input('upload-data-fitting', 'contents')],
@@ -286,7 +286,8 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
                     f.write(s)
 
                 try:
-                    d = read_data(join(input_dir, 'fitting', list_of_names[i]), format)
+                    d = read_data(join(input_dir, 'fitting',
+                                       list_of_names[i]), format)
                     temp = d[2]
                     print(temp[0])
                     min_ = max(min_, int(temp[0]) + 1)
@@ -306,7 +307,8 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
         # decoding error, error parsing into models),
         # then print the error message.
         _clean_input_dir()
-        import traceback; traceback.print_exc()
+        import traceback
+        traceback.print_exc()
         return f'An error occurred while uploading files: {e}', [], min_, max_
 
 
@@ -358,10 +360,16 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
         df.rename({'index': 'filename'}, axis=1, inplace=True)
         csv_string = df.to_csv(index=False)
 
-        outputdir = join(BASE_DIR, 'output',
-                         f'output_{session_id}', 'analysis', f'job_{jobs[-1]}')
-        imagedir = join(outputdir, 'images')
-        
+        output = join(BASE_DIR, 'output')
+        session = join(output, f'output_{session_id}')
+        analysis = join(session, 'analysis')
+        job = join(analysis, f'job_{jobs[-1]}')
+        images = join(job, 'images')
+
+        for dir_ in [output, session, analysis, job, images]:
+            if not isdir(dir_):
+                os.mkdir(dir_)
+
         # don't download if imagedir already full
         # download s3 images
         if len(os.listdir(imagedir)) > 0:
@@ -451,6 +459,7 @@ def download_img():
                          )
     else:
         print(f'File not found: {f}')
+
 
 @app.server.route('/dash/download-fit')
 def download_fitting():
