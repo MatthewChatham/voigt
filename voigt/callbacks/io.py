@@ -374,7 +374,7 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
         # download s3 images
         if len(os.listdir(images)) > 0:
             # print(os.listdir(imagedir))
-            if not isfile(join(analysis, 'images.zip')):
+            if not isfile(join(job, 'images.zip')):
                 tmp = shutil.make_archive(images, 'zip', images)
                 print(f'made archive {tmp}')
                 # for f in os.listdir(imagedir):
