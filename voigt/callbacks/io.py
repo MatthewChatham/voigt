@@ -21,6 +21,7 @@ from ..common.extract import parse_file
 from ..worker import conn
 from ..server import app
 from ..common.amazon import get_s3
+from ..common.extract import read_input
 from ..peak_fitting import read_data
 
 from rq import Queue
@@ -469,6 +470,49 @@ def download_fitting():
         return send_file(f,
                          mimetype='application/zip',
                          attachment_filename=f'fitting_{session_id}.zip',
+                         as_attachment=True
+                         )
+    else:
+        print(f'File not found: {f}')
+
+
+@app.callback(
+    [Output('hist-download-1', 'href'), Output('hist-download-2', 'href')],
+    [Input('parse-data-and-refresh-chart', 'n_clicks')], [State('session-id', 'children')]
+)
+def download_peaks_and_areas(n_clicks, session_id):
+
+    df = read_input(session_id)
+    res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
+    for idx, (_, model) in enumerate(df.iterrows()):
+
+        row = pd.Series()
+        row['filename'] = model.filename
+        row['peak_name'] = model.variable
+        row['peak_position'] = model.value
+        
+        amp_col = model.variable[:model.variable.index('_')] + '_amplitude'
+        row['amplitude'] = model[amp_col]
+
+        res.loc[idx] = row
+
+    csv_string = res.to_csv(index=False)
+
+    res = "data:text/csv;charset=utf-8," + quote(csv_string)
+
+    return res, f'/dash/download-hist?session_id={session_id}'
+
+
+@app.server.route('/dash/download-hist')
+def download_histogram():
+    session_id = flask.request.args.get('session_id')
+    
+    f = join(BASE_DIR, 'output', f'output_{session_id}', 'histogram.csv')
+    
+    if isfile(f):
+        return send_file(f,
+                         mimetype='application/csv',
+                         attachment_filename='histogram.csv',
                          as_attachment=True
                          )
     else:

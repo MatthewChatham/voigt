@@ -54,9 +54,27 @@ def compute_bin_areas(bins, DATA):
     def F(x):
         vals = np.array([0] * len(x), ndmin=2)
 
+        def compute_amplitudes(DATA):
+            res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
+            for idx, (_, model) in enumerate(DATA.iterrows()):
+
+                row = pd.Series()
+                row['filename'] = model.filename
+                row['peak_name'] = model.variable
+                row['peak_position'] = model.value
+                
+                amp_col = model.variable[:model.variable.index('_')] + '_amplitude'
+                row['amplitude'] = model[amp_col]
+
+                res.loc[idx] = row
+
+            return res
+
+        amplitudes = compute_amplitudes(DATA)
+
         for idx, model in DATA.iterrows():
             file = model.filename
-            total_area_in_file = DATA.loc[DATA.filename == file, 'pm0_amplitude'].sum()
+            total_area_in_file = amplitudes.loc[amplitudes.filename == file, 'amplitude'].sum()
             prefix = model.variable[:model.variable.index('_')]
             sigma = model.loc[prefix + '_sigma']
             gamma = sigma

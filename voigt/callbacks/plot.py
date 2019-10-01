@@ -92,6 +92,7 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks,
         bin_width=bin_width,
         DATA=models,
         scale=scale,
+        session_id=session_id,
         shapes=[],  # construct_shapes(split_point=split_point),
     )
 

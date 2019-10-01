@@ -92,6 +92,11 @@ step1 = [html.H1("Step 1: Upload Fitted Peaks", style={'margin-left': '10px'}),
                        id='parse-data-and-refresh-chart',
                        color='primary',
                        style={'margin-top': '5px', 'font-size': '14px'}),
+            html.A(dbc.Button('Download peaks and areas',
+                                        color='primary',
+                                        style={'font-size': '16px',
+                                               'margin': '10px 5px 0 0'}),
+                             href='#', id='hist-download-1'),
         ], style={'padding': '10px'}),
 
     ], style={'margin': '10px'}),
@@ -190,7 +195,13 @@ step2 = [html.H1('Step 2: Adjust Chart', style={'margin-left': '10px'}),
 
              dbc.Col([
                  dcc.Graph(id='plot', figure=emptyplot())
-             ], md=12, style={'margin': '25px 0'})
+             ], md=12, style={'margin': '25px 0'}),
+
+
+             html.A(dbc.Button('Download histogram',
+                        id='hist-download-2',
+                        color='primary',
+                        style={'margin-top': '5px', 'font-size': '14px'}), href='/dash/download-hist'),
 
          ], style={'margin': '25px'}, className="justify-content-center"),
 

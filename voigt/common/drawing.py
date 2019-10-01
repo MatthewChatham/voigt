@@ -4,12 +4,21 @@ Plotly plotting functions.
 import plotly.graph_objs as go
 from .aggregate import compute_bin_areas, Voigt
 import numpy as np
-
+import os
+import pandas as pd
 
 MIN, MAX = 0, 1000
 
 # todo: only recompute area if bin width changes
 # todo: find and fix bugs with partition selection on area plot
+
+if os.environ.get('STACK'):
+    env = 'Heroku'
+    BASE_DIR = '/app'
+    DATABASE_URL = os.environ['DATABASE_URL']
+else:
+    env = 'Dev'
+    BASE_DIR = 'C:\\Users\\Administrator\\Desktop\\voigt'
 
 
 def construct_shapes(scale='linear', split_point=None, max_=10):
@@ -32,7 +41,7 @@ def construct_shapes(scale='linear', split_point=None, max_=10):
 
 
 def countplot(bin_width=50, shapes=[],
-              scale='linear', selectedData=None, DATA=None, exclude_negative=True):
+              scale='linear', selectedData=None, DATA=None, exclude_negative=True, session_id=None):
 
     if exclude_negative:
         DATA = DATA.loc[~DATA.variable.str.contains('nm')]
@@ -65,7 +74,7 @@ def countplot(bin_width=50, shapes=[],
 
 
 def areaplot(bin_width=50, shapes=[],
-             scale='linear', selectedData=None, DATA=None, exclude_negative=True, areas=None):
+             scale='linear', selectedData=None, DATA=None, exclude_negative=True, areas=None, session_id=None):
 
     if exclude_negative:
         DATA = DATA.loc[~DATA.variable.str.contains('nm')]
@@ -100,11 +109,22 @@ def areaplot(bin_width=50, shapes=[],
         })
     }
 
+    hist_output_2_df = pd.DataFrame([], columns=['bin_position', 'height', 'bin_width'])
+    hist_output_2_df['bin_position'] = [x[0] for x in bins]
+    hist_output_2_df['height'] = areas
+    hist_output_2_df['bin_width'] = bin_width
+
+
+    session = os.path.join(BASE_DIR, 'output', f'output_{session_id}')
+    if not os.path.isdir(session):
+        os.mkdir(session)
+    hist_output_2_df.to_csv(os.path.join(session, 'histogram.csv'), index=False)
+
     return figure
 
 
 def curveplot(bin_width=50, shapes=[],
-              scale='linear', selectedData=None, DATA=None, exclude_negative=True):
+              scale='linear', selectedData=None, DATA=None, exclude_negative=True, session_id=None):
 
     if exclude_negative:
         DATA = DATA.loc[~DATA.variable.str.contains('nm')]
@@ -152,7 +172,7 @@ def curveplot(bin_width=50, shapes=[],
 
 
 def sumcurveplot(bin_width=50, shapes=[],
-                 scale='linear', selectedData=None, DATA=None, exclude_negative=True):
+                 scale='linear', selectedData=None, DATA=None, exclude_negative=True, session_id=None):
 
     if exclude_negative:
         DATA = DATA.loc[~DATA.variable.str.contains('nm')]
@@ -204,7 +224,7 @@ def sumcurveplot(bin_width=50, shapes=[],
     return figure
 
 
-def emptyplot():
+def emptyplot(session_id=None):
     data = list()
 
     figure = {
