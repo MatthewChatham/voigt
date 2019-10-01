@@ -52,9 +52,11 @@ def compute_bin_areas(bins, DATA):
     """
 
     def F(x):
-        vals = np.array([0]*len(x), ndmin=2)
+        vals = np.array([0] * len(x), ndmin=2)
 
         for idx, model in DATA.iterrows():
+            file = model.filename
+            total_area_in_file = DATA.loc[DATA.filename == file, 'pm0_amplitude'].sum()
             prefix = model.variable[:model.variable.index('_')]
             sigma = model.loc[prefix + '_sigma']
             gamma = sigma
@@ -62,7 +64,9 @@ def compute_bin_areas(bins, DATA):
             if 'nm' in prefix:
                 amplitude = -amplitude
 
-            res =  np.array(Voigt(x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
+            res = np.array(Voigt(
+                x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
+            res = np.divide(res, total_area_in_file)
             # print(vals, res)
             vals = np.concatenate([vals, res], axis=0)
         return vals.sum(axis=0)
@@ -71,7 +75,7 @@ def compute_bin_areas(bins, DATA):
 
     y = F(x)
 
-    curve = pd.DataFrame({'x':x, 'y':y})
+    curve = pd.DataFrame({'x': x, 'y': y})
     # print(curve)
 
     areas = [0] * len(bins)
@@ -273,7 +277,7 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
         return col, np.nan
 
     def F(x):
-        vals = np.array([0]*len(x), ndmin=2)
+        vals = np.array([0] * len(x), ndmin=2)
 
         for idx, model in models.iterrows():
             prefix = model.variable[:model.variable.index('_')]
@@ -283,7 +287,8 @@ def fwhm(bounds, models, session_id, job_id, pos_neg='pos'):
             # if 'nm' in prefix:
             #     amplitude = -amplitude
 
-            res =  np.array(Voigt(x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
+            res = np.array(Voigt(
+                x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
             # print(vals, res)
             vals = np.concatenate([vals, res], axis=0)
         return vals.sum(axis=0)
