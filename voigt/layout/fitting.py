@@ -81,7 +81,7 @@ step2 = [
                 options=[
                     {'label': 'Fit negative peaks?', 'value': 'neg'},
                 ],
-                values=[], inputStyle={'margin-right': '5px'},
+                value=[], inputStyle={'margin-right': '5px'},
                 id='negative-peaks'
             ),
 
@@ -92,7 +92,7 @@ step2 = [
                     options=[
                         {'label': 'Full (disables input)', 'value': 'full'},
                     ],
-                    values=[], inputStyle={'margin-right': '5px'},
+                    value=[], inputStyle={'margin-right': '5px'},
                     id='temp-range-neg-full'
                 ),
                 dcc.Input(id='neg-range-min', type='number',
@@ -116,7 +116,7 @@ step2 = [
                     options=[
                         {'label': 'Full (disables input)', 'value': 'full'},
                     ],
-                    values=[], inputStyle={'margin-right': '5px'},
+                    value=[], inputStyle={'margin-right': '5px'},
                     id='temp-range-pos-full'
                 ),
                 dcc.Input(id='pos-range-min', type='number',

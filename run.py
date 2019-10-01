@@ -5,9 +5,10 @@ from voigt.app import app
 if os.environ.get('STACK'):
     env = 'Heroku'
     BASE_DIR = '/app'
+    DATABASE_URL = os.environ['DATABASE_URL']
 else:
     env = 'Dev'
-    BASE_DIR = '/Users/matthew/freelance/voigt'
+    BASE_DIR = 'C:\\Users\\Administrator\\Desktop\\voigt'
 
 print('')
 print('#'*78)

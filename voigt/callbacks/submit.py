@@ -16,14 +16,13 @@ from ..server import app
 from ..common.extract import read_input
 
 if os.environ.get('STACK'):
-    print('RUNNING ON HEROKU')
     env = 'Heroku'
     BASE_DIR = '/app'
     DATABASE_URL = os.environ['DATABASE_URL']
     eng = create_engine(DATABASE_URL)
 else:
     env = 'Dev'
-    BASE_DIR = '/Users/matthew/freelance/voigt'
+    BASE_DIR = 'C:\\Users\\Administrator\\Desktop\\voigt'
 
 q = Queue(connection=conn)
 
@@ -54,7 +53,7 @@ def submit(n_clicks, state, session_id, jobs):
 
         if len(models) > 0:
             q.enqueue(generate_output_file, splits,
-                      models, session_id, job_id, job_id=job_id)
+                      models, session_id, job_id, job_id=job_id, job_timeout=60*60)
             jobs.append(job_id)
 
             outputdir = join(BASE_DIR, 'output',

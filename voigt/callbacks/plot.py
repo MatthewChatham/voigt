@@ -13,14 +13,13 @@ from ..common.extract import read_input
 from ..common.drawing import countplot, areaplot, curveplot, sumcurveplot, emptyplot
 
 if os.environ.get('STACK'):
-    print('RUNNING ON HEROKU')
     env = 'Heroku'
     BASE_DIR = '/app'
     DATABASE_URL = os.environ['DATABASE_URL']
     eng = create_engine(DATABASE_URL)
 else:
     env = 'Dev'
-    BASE_DIR = '/Users/matthew/freelance/voigt'
+    BASE_DIR = 'C:\\Users\\Administrator\\Desktop\\voigt'
 
 q = Queue(connection=conn)
 

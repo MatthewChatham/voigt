@@ -24,21 +24,20 @@ from rq.registry import StartedJobRegistry
 from rq.job import Job
 
 if os.environ.get('STACK'):
-    print('RUNNING ON HEROKU')
     env = 'Heroku'
     BASE_DIR = '/app'
     DATABASE_URL = os.environ['DATABASE_URL']
     eng = create_engine(DATABASE_URL)
 else:
     env = 'Dev'
-    BASE_DIR = '/Users/matthew/freelance/voigt'
+    BASE_DIR = 'C:\\Users\\Administrator\\Desktop\\voigt'
 
 q = Queue(connection=conn)
-
+    
 
 @app.callback(
     Output('neg-peak-range', 'style'),
-    [Input('negative-peaks', 'values')],
+    [Input('negative-peaks', 'value')],
     [State('neg-peak-range', 'style')]
 )
 def toggle_neg_peak_range(neg_peaks, style):
@@ -56,7 +55,7 @@ def toggle_neg_peak_range(neg_peaks, style):
         Output('pos-range-min', 'disabled'), Output('pos-range-max', 'disabled'),
         Output('pos-range-min', 'value'), Output('pos-range-max', 'value')
     ],
-    [Input('temp-range-pos-full', 'values')],
+    [Input('temp-range-pos-full', 'value')],
     [State('pos-range-min', 'value'), State('pos-range-max', 'value')]
 )
 def toggle_pos_peak_range(full, min_, max_):
@@ -73,7 +72,7 @@ def toggle_pos_peak_range(full, min_, max_):
         Output('neg-range-min', 'disabled'), Output('neg-range-max', 'disabled'),
         Output('neg-range-min', 'value'), Output('neg-range-max', 'value')
     ],
-    [Input('temp-range-neg-full', 'values')],
+    [Input('temp-range-neg-full', 'value')],
     [State('neg-range-min', 'value'), State('neg-range-max', 'value')]
 )
 def toggle_neg_peak_range2(full, min_, max_):

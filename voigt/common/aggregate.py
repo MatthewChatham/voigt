@@ -18,7 +18,7 @@ if os.environ.get('STACK'):
     DATABASE_URL = os.environ['DATABASE_URL']
 else:
     env = 'Dev'
-    BASE_DIR = '/Users/matthew/freelance/voigt'
+    BASE_DIR = 'C:\\Users\\Administrator\\Desktop\\voigt'
 
 # TODO: make sure partitions always includes (-np.inf, 0)
 # TODO: make sure to segregate "negative" models
