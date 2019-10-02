@@ -477,7 +477,7 @@ def download_fitting():
 
 
 @app.callback(
-    [Output('hist-download-1', 'href'), Output('hist-download-2', 'href')],
+    [Output('hist-download-1', 'href'), Output('hist-download-1', 'download'), Output('hist-download-2', 'href'), Output('hist-download-2', 'download')],
     [Input('parse-data-and-refresh-chart', 'n_clicks')], [State('session-id', 'children')]
 )
 def download_peaks_and_areas(n_clicks, session_id):
@@ -500,7 +500,7 @@ def download_peaks_and_areas(n_clicks, session_id):
 
     res = "data:text/csv;charset=utf-8," + quote(csv_string)
 
-    return res, f'/dash/download-hist?session_id={session_id}'
+    return res, 'peaks.csv', f'/dash/download-hist?session_id={session_id}', 'histogram.csv'
 
 
 @app.server.route('/dash/download-hist')
