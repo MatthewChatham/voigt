@@ -55,7 +55,7 @@ def read_data(fname, format):
         start_collecting = False
         steps = 0
 
-        with open(fname, encoding='utf_8') as f:
+        with open(fname) as f:
             for line in f:
 
                 if 'Sample Mass' in line:
@@ -64,10 +64,8 @@ def read_data(fname, format):
                 if '[step]' in line:
                     steps += 1
 
-                if 'min\t°C\tmg\t%' in str(line).strip() and steps == 2:
+                if 'min\t°C\tmg\t%' in str(line).strip() and steps == 1:
                     start_collecting = True
-                elif steps > 2:
-                    start_collecting = False
 
                 if start_collecting and line.strip() and 'min\t°C\tmg\t%' not in str(line).strip():
                     row = line.split()

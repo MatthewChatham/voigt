@@ -15,6 +15,7 @@ rq
 psycopg2-binary
 sqlalchemy
 boto3
+chardet
 
 # peak fitting
 altgraph==0.16.1

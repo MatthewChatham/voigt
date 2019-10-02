@@ -46,7 +46,7 @@ q = Queue(connection=conn)
         Input('tga-plot-dropdown', 'value'),
         Input('pos-range-min', 'value'), Input('pos-range-max', 'value'),
         Input('neg-range-min', 'value'), Input('neg-range-max', 'value'),
-        Input('negative-peaks', 'values')
+        Input('negative-peaks', 'value')
     ],
     [State('session-id', 'children'), State('file-format',
                                             'value'), State('tga-plot', 'figure'), ]
