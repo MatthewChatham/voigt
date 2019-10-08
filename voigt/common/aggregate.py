@@ -30,7 +30,7 @@ else:
 # test_partitions = [(x, test_splits[i + 1])
 #                    for i, x in enumerate(test_splits) if x != 1000]
 
-FILES = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
+# FILES = [f for f in os.listdir(join(BASE_DIR, 'input')) if f.endswith('.txt')]
 
 
 def Voigt(x, center, amplitude, sigma, gamma):
@@ -51,61 +51,37 @@ def compute_bin_areas(bins, DATA):
     Used when the user selects "Area" chart type.
     """
 
-    def F(x):
-        vals = np.array([0] * len(x), ndmin=2)
-
-        def compute_amplitudes(DATA):
-            res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
-            for idx, (_, model) in enumerate(DATA.iterrows()):
-
-                row = pd.Series()
-                row['filename'] = model.filename
-                row['peak_name'] = model.variable
-                row['peak_position'] = model.value
-                
-                amp_col = model.variable[:model.variable.index('_')] + '_amplitude'
-                row['amplitude'] = model[amp_col]
-
-                res.loc[idx] = row
-
-            return res
-
-        amplitudes = compute_amplitudes(DATA)
-
-        for idx, model in DATA.iterrows():
-            file = model.filename
-            total_area_in_file = amplitudes.loc[amplitudes.filename == file, 'amplitude'].sum()
-            prefix = model.variable[:model.variable.index('_')]
-            sigma = model.loc[prefix + '_sigma']
-            gamma = sigma
-            amplitude = model.loc[prefix + '_amplitude']
-            if 'nm' in prefix:
-                amplitude = -amplitude
-
-            res = np.array(Voigt(
-                x, center=model.value, amplitude=amplitude, sigma=sigma, gamma=gamma), ndmin=2)
-            res = np.divide(res, total_area_in_file)
-            # print(vals, res)
-            vals = np.concatenate([vals, res], axis=0)
-        return vals.sum(axis=0)
-
-    x = pd.Series(list(np.linspace(30, 1000, 2 * (1000 - 30))))
-
-    y = F(x)
-
-    curve = pd.DataFrame({'x': x, 'y': y})
-    # print(curve)
-
     areas = [0] * len(bins)
 
+    def compute_models(DATA):
+        res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
+        for idx, (_, model) in enumerate(DATA.iterrows()):
+
+            row = pd.Series()
+            row['filename'] = model.filename
+            row['peak_name'] = model.variable
+            row['peak_position'] = model.value
+            
+            amp_col = model.variable[:model.variable.index('_')] + '_amplitude'
+            row['amplitude'] = model[amp_col]
+
+            res.loc[idx] = row
+
+        return res
+
+    models = compute_models(DATA)
+
+    # import pdb; pdb.set_trace()
+
     for i, b in enumerate(bins):
-        # approximation!
-        # print('Y:', y)
-        # print()
-        # print()
-        # print('X:', x)
-        # print('BOUNDS:',  /(b))
-        areas[i] = curve.loc[curve.x.between(*b), 'y'].sum()
+        models_in_bin = models.loc[models.peak_position.between(b[0], b[1])]
+        for idx, m in models_in_bin.iterrows():
+            total_amplitude_in_file = models.loc[models.filename == m.filename, 'amplitude'].sum()
+            areas[i] = areas[i] + m['amplitude'] / total_amplitude_in_file
+
+    # print('AREAS:', areas)
+
+
     return areas
 
 
