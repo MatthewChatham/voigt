@@ -43,7 +43,12 @@ def update_selection_prompt(state):
 )
 def set_file_options(n_clicks, session_id):
 
-    models = read_input(session_id)
+    pth = join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv')
+    try:
+        models = pd.read_csv(pth)
+    except Exception:
+        models = read_input(session_id)
+        # models.to_csv()
     if len(models) == 0:
         return []
 
@@ -81,7 +86,12 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks,
         'sumcurve': sumcurveplot
     }
 
-    models = read_input(session_id)
+    pth = join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv')
+    try:
+        models = pd.read_csv(pth)
+    except Exception:
+        models = read_input(session_id)
+
     if len(models) == 0:
         # print('returning emptyplot')
         return emptyplot()

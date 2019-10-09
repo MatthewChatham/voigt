@@ -151,6 +151,10 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
             res = [html.Li(x) for x in written]
             res.insert(0, html.P(f'Success! {len(written)} \
                 .txt files were uploaded.'))
+
+            models = read_input(session_id)
+            models.to_csv(input_dir, 'models.csv')
+
             return res
 
     except Exception as e:
