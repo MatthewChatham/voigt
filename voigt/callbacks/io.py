@@ -486,7 +486,7 @@ def download_fitting():
 )
 def download_peaks_and_areas(n_clicks, session_id):
 
-    df = read_input(session_id)
+    df = pd.read_csv(join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv'))
     res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
     for idx, (_, model) in enumerate(df.iterrows()):
 
