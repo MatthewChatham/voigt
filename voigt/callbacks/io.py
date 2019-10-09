@@ -153,7 +153,7 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
                 .txt files were uploaded.'))
 
             models = read_input(session_id)
-            models.to_csv(input_dir, 'models.csv')
+            models.to_csv(join(input_dir, 'models.csv'))
 
             return res
 
