@@ -7,6 +7,7 @@ import json
 from rq import Queue
 from sqlalchemy import create_engine
 from dash.dependencies import Input, Output, State
+import pandas as pd
 
 from ..worker import conn
 from ..server import app
@@ -47,7 +48,8 @@ def set_file_options(n_clicks, session_id):
     pth = join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv')
     try:
         models = pd.read_csv(pth)
-    except Exception:
+    except Exception as e:
+        print(e)
         models = read_input(session_id)
         # models.to_csv()
     if len(models) == 0:
@@ -90,7 +92,8 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks,
     pth = join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv')
     try:
         models = pd.read_csv(pth)
-    except Exception:
+    except Exception as e:
+        print(e)
         models = read_input(session_id)
 
     if len(models) == 0:
