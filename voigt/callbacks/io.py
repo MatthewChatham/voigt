@@ -156,6 +156,12 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
                 .txt files were uploaded.'))
 
             # peaks = read_input(session_id)
+            id_vars = pd.Series(peaks.columns)
+            mask = ~(id_vars.str.contains('(p|n)m', regex=True) &
+                     id_vars.str.contains('center'))
+            id_vars = id_vars.loc[mask]
+            peaks = peaks.melt(id_vars=id_vars)
+            peaks = peaks.loc[peaks.value.notnull()]
 
             def compute_models(DATA):
                 res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
