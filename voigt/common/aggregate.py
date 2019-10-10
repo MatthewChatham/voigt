@@ -46,30 +46,12 @@ def Voigt(x, center, amplitude, sigma, gamma):
     return res
 
 
-def compute_bin_areas(bins, DATA):
+def compute_bin_areas(bins, models):
     """
     Used when the user selects "Area" chart type.
     """
 
     areas = [0] * len(bins)
-
-    def compute_models(DATA):
-        res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
-        for idx, (_, model) in enumerate(DATA.iterrows()):
-
-            row = pd.Series()
-            row['filename'] = model.filename
-            row['peak_name'] = model.variable
-            row['peak_position'] = model.value
-            
-            amp_col = model.variable[:model.variable.index('_')] + '_amplitude'
-            row['amplitude'] = model[amp_col]
-
-            res.loc[idx] = row
-
-        return res
-
-    models = compute_models(DATA)
 
     # import pdb; pdb.set_trace()
 

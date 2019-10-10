@@ -45,7 +45,7 @@ def update_selection_prompt(state):
 )
 def set_file_options(n_clicks, session_id):
 
-    pth = join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv')
+    pth = join(BASE_DIR, 'input', f'input_{session_id}', 'peaks.csv')
     try:
         models = pd.read_csv(pth)
     except Exception as e:
@@ -89,7 +89,7 @@ def update_plot(bin_width, scale, chart_type, refresh_clicks,
         'sumcurve': sumcurveplot
     }
 
-    pth = join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv')
+    pth = join(BASE_DIR, 'input', f'input_{session_id}', 'peaks.csv')
     try:
         models = pd.read_csv(pth)
     except Exception as e:

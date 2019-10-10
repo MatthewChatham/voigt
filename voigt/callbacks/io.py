@@ -152,8 +152,29 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
             res.insert(0, html.P(f'Success! {len(written)} \
                 .txt files were uploaded.'))
 
-            models = read_input(session_id)
+            peaks = read_input(session_id)
+
+            def compute_models(DATA):
+                res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
+                for idx, (_, model) in enumerate(DATA.iterrows()):
+
+                    row = pd.Series()
+                    row['filename'] = model.filename
+                    row['peak_name'] = model.variable
+                    row['peak_position'] = model.value
+                    
+                    amp_col = model.variable[:model.variable.index('_')] + '_amplitude'
+                    row['amplitude'] = model[amp_col]
+
+                    res.loc[idx] = row
+
+                return res
+
+            models = compute_models(peaks)
+
             models.to_csv(join(input_dir, 'models.csv'))
+
+            peaks.to_csv(join(input_dir, 'peaks.csv'))
 
             return res
 
@@ -486,7 +507,7 @@ def download_fitting():
 )
 def download_peaks_and_areas(n_clicks, session_id):
 
-    df = pd.read_csv(join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv'))
+    df = pd.read_csv(join(BASE_DIR, 'input', f'input_{session_id}', 'peaks.csv'))
     res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
     for idx, (_, model) in enumerate(df.iterrows()):
 

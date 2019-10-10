@@ -20,7 +20,7 @@ else:
     BASE_DIR = 'C:\\Users\\Administrator\\Desktop\\voigt'
 
 
-def read_input(session_id):
+def read_input(session_id=None, path=None):
     """
     Reads and parses files in BASE_DIR/input/,
     returning a dataframe with one model per record.
@@ -30,7 +30,10 @@ def read_input(session_id):
     models = pd.DataFrame()
 
     # Get all text files in BASE_DIR/input/
-    input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'analysis')
+    if path is None:
+        input_dir = join(BASE_DIR, 'input', f'input_{session_id}', 'analysis')
+    else:
+        input_dir = path
 
     if not isdir(input_dir):
         return models
@@ -41,6 +44,7 @@ def read_input(session_id):
     # in one row) to `res`
     for f in files:
         pth = os.path.join(input_dir, f)
+        print(pth)
         models = pd.concat([models, parse_file(pth)], sort=True)
 
     # Melt `res` so each record corresponds to a single model

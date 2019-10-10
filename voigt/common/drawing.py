@@ -86,7 +86,9 @@ def areaplot(bin_width=50, shapes=[],
 
     if areas is None:
         print('COMPUTING BIN AREAS')
-        areas = compute_bin_areas(bins, DATA)
+        input_dir = os.path.join(BASE_DIR, 'input', f'input_{session_id}')
+        models = pd.read_csv(os.path.join(input_dir, 'models.csv'))
+        areas = compute_bin_areas(bins, models)
 
     figure = {
         'data': [go.Bar(x=[x[0] for x in bins],
