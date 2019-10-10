@@ -123,6 +123,8 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
             # the error message. Otherwise, show a bullet list of files
             # uploaded to the input directory.
 
+            peaks = pd.DataFrame()
+
             for i, c in enumerate(list_of_contents):
 
                 if not list_of_names[i].endswith('.txt'):
@@ -140,7 +142,8 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
                     f.write(s)
 
                 try:
-                    parse_file(join(input_dir, 'analysis', list_of_names[i]))
+                    parsed_file = parse_file(join(input_dir, 'analysis', list_of_names[i]))
+                    peaks = pd.concat([peaks, parsed_file], sort=True)
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
@@ -152,7 +155,7 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
             res.insert(0, html.P(f'Success! {len(written)} \
                 .txt files were uploaded.'))
 
-            peaks = read_input(session_id)
+            # peaks = read_input(session_id)
 
             def compute_models(DATA):
                 res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
