@@ -527,41 +527,39 @@ def download_fitting():
 
 @app.callback(
     [Output('hist-download-1', 'href'), Output('hist-download-1', 'download'), Output('hist-download-2', 'href'), Output('hist-download-2', 'download')],
-    [Input('refresh-download', 'n_clicks')], [State('session-id', 'children')]
+    [Input('parse-data-and-refresh-chart', 'n_clicks')], [State('session-id', 'children')]
 )
 def download_peaks_and_areas(n_clicks, session_id):
 
-    df = pd.read_csv(join(BASE_DIR, 'input', f'input_{session_id}', 'peaks.csv'))
-    res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
-    for idx, (_, model) in enumerate(df.iterrows()):
-
-        row = pd.Series()
-        row['filename'] = model.filename
-        row['peak_name'] = model.variable
-        row['peak_position'] = model.value
-        
-        amp_col = model.variable[:model.variable.index('_')] + '_amplitude'
-        row['amplitude'] = model[amp_col]
-
-        res.loc[idx] = row
-
-    csv_string = res.to_csv(index=False)
-
-    res = "data:text/csv;charset=utf-8," + quote(csv_string)
-
-    return res, 'peaks.csv', f'/dash/download-hist?session_id={session_id}', 'histogram.csv'
+    return f'/dash/download-models?session_id={session_id}', 'peaks.csv', f'/dash/download-hist?session_id={session_id}', 'histogram.csv'
 
 
 @app.server.route('/dash/download-hist')
 def download_histogram():
     session_id = flask.request.args.get('session_id')
-    
+
     f = join(BASE_DIR, 'output', f'output_{session_id}', 'histogram.csv')
-    
+
     if isfile(f):
         return send_file(f,
                          mimetype='application/csv',
                          attachment_filename='histogram.csv',
+                         as_attachment=True
+                         )
+    else:
+        print(f'File not found: {f}')
+
+
+@app.server.route('/dash/download-models')
+def download_models():
+    session_id = flask.request.args.get('session_id')
+
+    f = join(BASE_DIR, 'input', f'input_{session_id}', 'models.csv')
+
+    if isfile(f):
+        return send_file(f,
+                         mimetype='application/csv',
+                         attachment_filename='peaks.csv',
                          as_attachment=True
                          )
     else:
