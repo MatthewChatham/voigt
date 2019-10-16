@@ -87,9 +87,9 @@ def parse_input_params(input_params):
             # exit(0)
 
     file_format = input_params['file format'].strip()
-    if file_format not in ["Q500/DMSM", "TGA 5500", "Just Temp and Mass"]:
+    if file_format not in ["Q500/DMSM", "TGA 5500", "TGA 5500 v2", "Just Temp and Mass"]:
         raise Exception(
-            'invalid entry in params file: file format takes only "Q500/DMSM", "TGA 5500", or "Just Temp and Mass"')
+            'invalid entry in params file: file format takes only "Q500/DMSM", "TGA 5500", "TGA 5500 v2", or "Just Temp and Mass"')
         # exit(0)
 
     # amorphous carbon temperature
