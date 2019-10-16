@@ -364,6 +364,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
 @app.callback(
     [
         Output('dl_link', 'href'),
+        Output('dl_link', 'download'),
         Output('dl_link', 'style'),
         Output('dl_link_images', 'href'),
         Output('dl_link_images', 'style'),
@@ -377,7 +378,7 @@ def upload_fitting(list_of_contents, list_of_names, list_of_dates, session_id, j
 )
 def poll_and_update_on_processing(n_intervals, session_id, jobs):
     if n_intervals == 0:
-        return '#', {'display': 'none'}, '#', {'display': 'none'}, ''
+        return '#', '', {'display': 'none'}, '#', {'display': 'none'}, ''
 
     res = None
 
@@ -429,7 +430,7 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
                 # for f in os.listdir(imagedir):
                 #     os.unlink(join(imagedir, f))
             # {'display': 'none'}
-            res = ("data:text/csv;charset=utf-8," + quote(csv_string), {},
+            res = ("data:text/csv;charset=utf-8," + quote(csv_string), 'output.csv', {},
                    f'/dash/download?session_id={session_id}&job_id={jobs[-1]}', {},
                    dbc.Alert('Your results are ready!', color='success'))
 
@@ -470,7 +471,7 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
                 tmp = shutil.make_archive(images, 'zip', images)
                 print(f'made archive {tmp}')
 
-            res = ("data:text/csv;charset=utf-8," + quote(csv_string), {},
+            res = ("data:text/csv;charset=utf-8," + quote(csv_string), 'output.csv', {},
                    f'/dash/download?session_id={session_id}&job_id={jobs[-1]}', {},
                    dbc.Alert('Your results are ready!', color='success'))
     else:
@@ -480,9 +481,9 @@ def poll_and_update_on_processing(n_intervals, session_id, jobs):
         if (jobs and jobs[-1] not in registry.get_job_ids()) or not jobs:
             msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
                 else dbc.Alert('Upload some peak files first!', color='warning')
-            res = ('#', {'display': 'none'}, '#', {'display': 'none'}, msg)
+            res = ('#', '', {'display': 'none'}, '#', {'display': 'none'}, msg)
         elif jobs and jobs[-1] in registry.get_job_ids():
-            res = ('#', {'display': 'none'}, '#', {'display': 'none'},
+            res = ('#', '', {'display': 'none'}, '#', {'display': 'none'},
                    dbc.Alert(
                 [
                     'Please wait while your request is processed.',
