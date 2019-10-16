@@ -52,10 +52,13 @@ step1 = [html.H1("Step 1: Upload Fitted Peaks", style={'margin-left': '10px'}),
     [
         dbc.Col(
             [
-                html.P('Note: Refreshing page will \
-                                    remove input files. \
-                                    Uploading multiple times will first \
-                                    remove all existing files.'),
+                dcc.Checklist(
+                    options=[
+                        {'label': 'Clean input directory?', 'value': 'neg'},
+                    ],
+                    value=['neg'], inputStyle={'margin-right': '5px'},
+                    id='clean_input_dir'
+                ),
                 dcc.Upload(
                     id='upload-data',
                     children=html.Div([

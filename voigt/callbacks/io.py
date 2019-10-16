@@ -46,16 +46,19 @@ q = Queue(connection=conn)
         State('upload-data', 'filename'),
         State('upload-data', 'last_modified'),
         State('session-id', 'children'),
-        State('jobs', 'children')
+        State('jobs', 'children'),
+        State('clean_input_dir', 'value')
     ]
 )
-def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, job_id):
+def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, job_id, clean_input_dir):
     """
     Takes uploaded .txt files as input and writes them to disk.
 
     Provides feedback to the user.
 
     """
+
+    clean_input_dir = len(clean_input_dir) != 0
 
     print('UPLOAD')
 
@@ -111,7 +114,8 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
         # then write the uploaded files to BASE_DIR/input/input_{session_id}
         if list_of_contents:
 
-            _clean_input_dir()
+            if clean_input_dir:
+                _clean_input_dir()
 
             # Save successfully uploaded filenames here
             written = list()
@@ -123,7 +127,14 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
             # the error message. Otherwise, show a bullet list of files
             # uploaded to the input directory.
 
-            peaks = pd.DataFrame()
+            if not clean_input_dir:
+                old_peaks = pd.read_csv(join(input_dir, 'peaks.csv'))
+                old_models = pd.read_csv(join(input_dir, 'models.csv'))
+            else:
+                old_peaks = pd.DataFrame()
+                old_models = pd.DataFrame()
+            
+            new_peaks = pd.DataFrame()
 
             for i, c in enumerate(list_of_contents):
 
@@ -143,7 +154,7 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
 
                 try:
                     parsed_file = parse_file(join(input_dir, 'analysis', list_of_names[i]))
-                    peaks = pd.concat([peaks, parsed_file], sort=True)
+                    new_peaks = pd.concat([new_peaks, parsed_file], sort=True)
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
@@ -156,12 +167,12 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
                 .txt files were uploaded.'))
 
             # peaks = read_input(session_id)
-            id_vars = pd.Series(peaks.columns)
+            id_vars = pd.Series(new_peaks.columns)
             mask = ~(id_vars.str.contains('(p|n)m', regex=True) &
                      id_vars.str.contains('center'))
             id_vars = id_vars.loc[mask]
-            peaks = peaks.melt(id_vars=id_vars)
-            peaks = peaks.loc[peaks.value.notnull()]
+            new_peaks = new_peaks.melt(id_vars=id_vars)
+            new_peaks = new_peaks.loc[new_peaks.value.notnull()]
 
             def compute_models(DATA):
                 res = pd.DataFrame([], columns=['filename', 'peak_name', 'peak_position', 'amplitude'])
@@ -179,7 +190,10 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
 
                 return res
 
-            models = compute_models(peaks)
+            new_models = compute_models(new_peaks)
+
+            models = pd.concat([old_models, new_models])
+            peaks = pd.concat([old_peaks, new_peaks])
 
             models.to_csv(join(input_dir, 'models.csv'))
 
@@ -192,6 +206,7 @@ def upload_analysis(list_of_contents, list_of_names, list_of_dates, session_id, 
         # decoding error, error parsing into models),
         # then print the error message.
         _clean_input_dir()
+        import traceback; traceback.print_exc()
         return f'An error occurred while uploading files: {e}'
 
 
