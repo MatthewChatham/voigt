@@ -255,7 +255,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs, file_format
     Output('fit-jobs', 'children'),
     [Input('submit_fitting', 'n_clicks')],
     [
-        State('negative-peaks', 'values'),
+        State('negative-peaks', 'value'),
         State('neg-range-min', 'value'), State('neg-range-max', 'value'),
         State('pos-range-min', 'value'), State('pos-range-max', 'value'),
         State('max-peak-num', 'value'),
@@ -265,8 +265,8 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs, file_format
         State('run-start-temp', 'value'),
         State('file-format', 'value'),
         State('amorphous-carbon-temp', 'value'),
-        State('temp-range-pos-full', 'values'),
-        State('temp-range-neg-full', 'values'),
+        State('temp-range-pos-full', 'value'),
+        State('temp-range-neg-full', 'value'),
         State('job-timeout-mins', 'value'),
 
         State('session-id', 'children'),
@@ -326,6 +326,7 @@ def submit(n_clicks, neg_peaks, neg_min, neg_max,
                                   amorph_carb_temp))
     except Exception as e:
         print(f'Error when generating parameter file: {e}')
+        # import traceback; print(traceback.print_exc())
         return fit_jobs
 
     # prepare data for worker process
