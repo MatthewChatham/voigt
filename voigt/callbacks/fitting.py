@@ -86,6 +86,7 @@ def toggle_neg_peak_range2(full, min_, max_):
 @app.callback(
     [
         Output('dl_link_fitting', 'href'),
+        Output('dl_link_fitting', 'download'),
         Output('dl_link_fitting', 'style'),
         Output('feedback_fitting', 'children'),
         Output('feedback_run_start_end', 'children'),
@@ -122,12 +123,12 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs, file_format
     if job_status() == 'queued':
         msg = dbc.Alert(['Waiting for compute resources...',
                          dbc.Spinner(type='grow')], color='warning')
-        res = ('#', {'display': 'none'}, msg, '', True)
+        res = ('#', '', {'display': 'none'}, msg, '', True)
     elif job_status() == 'ready':
         msg, flag = (dbc.Alert('Ready.', color='primary'), False) if len(os.listdir(input_dir)) > 0 \
             else (dbc.Alert('Upload some TGA measurements first!', color='warning'), True)
 
-        res = ('#', {'display': 'none'}, msg, '', flag)
+        res = ('#', '', {'display': 'none'}, msg, '', flag)
 
     elif job_status() == 'finished':
 
@@ -142,7 +143,7 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs, file_format
             if not isfile(join(fitting, f'job_{fit_jobs[-1]}.zip')):
                 tmp = shutil.make_archive(outputdir, 'zip', outputdir)
                 print(f'made archive {tmp}')
-            res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', {},
+            res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', 'fits.csv', {},
                    dbc.Alert('Your results are ready!', color='success'), '', False)
 
         # download results
@@ -184,15 +185,15 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs, file_format
                 tmp = shutil.make_archive(outputdir, 'zip', outputdir)
                 print(f'made archive {tmp}')
 
-            res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', {},
+            res = (f'/dash/download-fit?session_id={session_id}&job_id={fit_jobs[-1]}', 'fits.csv', {},
                    dbc.Alert('Your results are ready!', color='success'), '', False)
     elif job_status() == 'failed':
         job = Job.fetch(fit_jobs[-1], connection=conn)
         job_id = fit_jobs[-1]
         if 'JobTimeoutException' in job.exc_info:
-            res = ('#', {'display': 'none'}, dbc.Alert(f'Job {session_id}:{job_id} failed due to timeout!', color='danger'), '', False)
+            res = ('#', '', {'display': 'none'}, dbc.Alert(f'Job {session_id}:{job_id} failed due to timeout!', color='danger'), '', False)
         else:
-            res = ('#', {'display': 'none'}, dbc.Alert(f'Job {session_id}:{job_id} failed!', color='danger'), '', False)
+            res = ('#', '', {'display': 'none'}, dbc.Alert(f'Job {session_id}:{job_id} failed!', color='danger'), '', False)
         jobdir = join(BASE_DIR, 'output', f'output_{session_id}', 'fitting', f'job_{job_id}')
         with open(join(jobdir, 'log.txt'), 'w') as f:
             f.write(job.exc_info)
@@ -216,9 +217,9 @@ def poll_and_update_on_processing(n_intervals, session_id, fit_jobs, file_format
         if (fit_jobs and fit_jobs[-1] not in registry.get_job_ids()) or not fit_jobs:
             msg = dbc.Alert('Ready.', color='primary') if len(os.listdir(input_dir)) > 0 \
                 else dbc.Alert('Upload some TGA measurements first!', color='warning')
-            res = ('#', {'display': 'none'}, msg, '', True)
+            res = ('#', '', {'display': 'none'}, msg, '', True)
         elif fit_jobs and fit_jobs[-1] in registry.get_job_ids():
-            res = ('#', {'display': 'none'},
+            res = ('#', '', {'display': 'none'},
                    dbc.Alert(
                 [
                     'Please wait while your request is processed.',
